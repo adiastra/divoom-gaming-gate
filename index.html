@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Genesys RPG Character Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Genesys RPG Character Creator</h1>
+    <label for="charName">Character Name:</label>
+    <input type="text" id="charName" name="charName" required>
+    <label for="charSpecies">Species:</label>
+    <input type="text" id="charSpecies" name="charSpecies" required>
+    <label for="charCareer">Career:</label>
+    <input type="text" id="charCareer" name="charCareer" required>
+    <label for="charBrawn">Brawn:</label>
+    <input type="number" id="charBrawn" name="charBrawn" min="1" max="6" required>
+    <label for="charAgility">Agility:</label>
+    <input type="number" id="charAgility" name="charAgility" min="1" max="6" required>
+    <label for="charIntellect">Intellect:</label>
+    <input type="number" id="charIntellect" name="charIntellect" min="1" max="6" required>
+    <label for="charCunning">Cunning:</label>
+    <input type="number" id="charCunning" name="charCunning" min="1" max="6" required>
+    <label for="charWillpower">Willpower:</label>
+    <input type="number" id="charWillpower" name="charWillpower" min="1" max="6" required>
+    <label for="charPresence">Presence:</label>
+    <input type="number" id="charPresence" name="charPresence" min="1" max="6" required>
+    <button onclick="submitCharacter()">Create Character</button>
+    <div id="response"></div>
+    <script>
+        function submitCharacter() {
+            const charName = document.getElementById('charName').value;
+            const charSpecies = document.getElementById('charSpecies').value;
+            const charCareer = document.getElementById('charCareer').value;
+            const charBrawn = document.getElementById('charBrawn').value;
+            const charAgility = document.getElementById('charAgility').value;
+            const charIntellect = document.getElementById('charIntellect').value;
+            const charCunning = document.getElementById('charCunning').value;
+            const charWillpower = document.getElementById('charWillpower').value;
+            const charPresence = document.getElementById('charPresence').value;
+
+            const character = {
+                name: charName,
+                species: charSpecies,
+                career: charCareer,
+                brawn: charBrawn,
+                agility: charAgility,
+                intellect: charIntellect,
+                cunning: charCunning,
+                willpower: charWillpower,
+                presence: charPresence
+            };
+
+            // Example: Send character data to Electron main process
+            require('electron').ipcRenderer.send('create-character', character);
+        }
+    </script>
+</body>
+</html>

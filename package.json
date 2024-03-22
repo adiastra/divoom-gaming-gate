@@ -1,0 +1,15 @@
+{
+  "name": "divoom-gaming-gate",
+  "version": "1.0.0",
+  "description": "This is a project designed to allow you to use the Divoom TimesGate as a tabletop gaming accesory",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "electron": "^29.1.5"
+  }
+}
