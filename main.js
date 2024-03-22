@@ -1,7 +1,9 @@
 // main.js
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const url = require('url');
+const { exec } = require('child_process');
+const fs = require('fs');
+const base64Img = require('base64-img');
 
 let mainWindow;
 
@@ -14,11 +16,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, 'index.html'),
-    protocol: 'file:',
-    slashes: true
-  }));
+  mainWindow.loadFile('index.html');
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -27,14 +25,28 @@ function createWindow() {
 
 app.on('ready', createWindow);
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+ipcMain.on('submit-form', (event, data) => {
+  // Create image using ImageMagick
+  exec('convert -size 128x128 xc:white RPGCharacter.png', (error, stdout, stderr) => {
+    if (error) {
+      console.error(`exec error: ${error}`);
+      return;
+    }
 
-app.on('activate', () => {
-  if (mainWindow === null) {
-    createWindow();
-  }
+    // Add character name and health bar to the image
+    exec(`convert RPGCharacter.png -gravity North -pointsize 16 -annotate +0+5 "${data.characterName}" RPGCharacter.png`);
+    exec(`convert RPGCharacter.png -fill red -draw "rectangle 10,100 118,110" RPGCharacter.png`);
+    exec(`convert RPGCharacter.png -fill green -draw "rectangle 10,100 90,110" RPGCharacter.png`);
+    
+    // Convert the image to base64
+    base64Img.base64('RPGCharacter.png', (err, dataUrl) => {
+      if (err) {
+        console.error(`Error converting image to base64: ${err}`);
+        return;
+      }
+
+      // Send the base64-encoded image data back to the front-end
+      mainWindow.webContents.send('image-data', { imageData: dataUrl });
+    });
+  });
 });
