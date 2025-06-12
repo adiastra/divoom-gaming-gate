@@ -7,7 +7,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     tabs = QTabWidget()
     tabs.setWindowTitle("Divoom Times Gate – Tabletop Manager V8")
-    tabs.resize(1000, 600)
+    # Open large enough to accommodate all five panels without shrinking
+    tabs.resize(1400, 700)
+
     tabs.addTab(ScreensTab(), "Screens")
     tabs.addTab(CharactersTab(), "Characters")
     tabs.show()
