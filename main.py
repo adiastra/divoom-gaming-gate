@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         gear_btn = QToolButton(self)
         gear_btn.setText("⚙")
         gear_btn.setToolTip("Preferences")
-        gear_btn.setStyleSheet("font-size: 32pt; padding: 4px;")
+        gear_btn.setStyleSheet("font-size: 24pt; padding: 4px;")
         gear_btn.clicked.connect(self.open_settings)
         gear_btn.setAutoRaise(True)
 
