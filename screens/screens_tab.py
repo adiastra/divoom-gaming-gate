@@ -7,9 +7,10 @@ class ScreensTab(QWidget):
         super().__init__()
         layout = QHBoxLayout()
         layout.setAlignment(Qt.AlignTop)
+
         for i in range(5):
             box = QGroupBox(f"Screen {i+1}")
-            box.setMinimumWidth(300)
+            box.setMinimumWidth(250)
             box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
 
             ctrl = ScreenControl(i)

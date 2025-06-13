@@ -1,3 +1,4 @@
+from utils.config import Config
 import io, base64, time, requests
 from PIL import Image
 from PyQt5.QtWidgets import (
@@ -8,7 +9,8 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
 from utils.image import compose_character_image
 
-DEVICE_IP    = "10.10.10.122"
+# Now dynamic
+DEVICE_IP    = Config.IP_ADDRESS
 SCREEN_COUNT = 5
 IMG_SIZE     = 128
 
@@ -27,19 +29,17 @@ class CharacterControl(QWidget):
         self.name_edit.setPlaceholderText("Name")
         self.name_edit.textChanged.connect(self.update_preview)
 
-        # Preview label
+        # Preview
         self.preview = QLabel()
         self.preview.setFixedSize(IMG_SIZE, IMG_SIZE)
         self.preview.setStyleSheet("border:1px solid white;")
         self.preview.setAlignment(Qt.AlignCenter)
+        pv_box = QHBoxLayout()
+        pv_box.addStretch()
+        pv_box.addWidget(self.preview)
+        pv_box.addStretch()
 
-        # Center the preview horizontally
-        preview_box = QHBoxLayout()
-        preview_box.addStretch()
-        preview_box.addWidget(self.preview)
-        preview_box.addStretch()
-
-        # Stat spinboxes
+        # Stats
         self.stat_boxes = {}
         stat_layout = QVBoxLayout()
         for stat in self.char["stats"]:
@@ -54,7 +54,7 @@ class CharacterControl(QWidget):
             h.addWidget(sb)
             stat_layout.addLayout(h)
 
-        # Send button
+        # Send
         self.send_btn = QPushButton("Send")
         self.send_btn.clicked.connect(self.send)
 
@@ -62,12 +62,11 @@ class CharacterControl(QWidget):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignTop)
         layout.addWidget(self.name_edit)
-        layout.addLayout(preview_box)
+        layout.addLayout(pv_box)
         layout.addLayout(stat_layout)
         layout.addWidget(self.send_btn)
         self.setLayout(layout)
 
-        # Initial render
         self.update_preview()
 
     def update_preview(self):
@@ -81,23 +80,29 @@ class CharacterControl(QWidget):
         self.preview.setPixmap(QPixmap.fromImage(qimg))
 
     def send(self):
+        # Reload IP in case changed
+        global DEVICE_IP
+        DEVICE_IP = Config.IP_ADDRESS
+
         stats = {s: self.stat_boxes[s].value() for s in self.stat_boxes}
-        name = self.name_edit.text()
-        img = compose_character_image(
+        name  = self.name_edit.text()
+        img   = compose_character_image(
             self.char["background"], self.char["portrait"], name, stats
         )
+
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
         b64 = base64.b64encode(buf.getvalue()).decode()
         pid = int(time.time())
+
         payload = {
-            "Command":   "Draw/SendHttpGif",
-            "LcdArray":  [1 if i == self.slot else 0 for i in range(SCREEN_COUNT)],
-            "PicNum":    1,
-            "PicOffset": 0,
-            "PicID":     pid,
-            "PicSpeed":  100,
-            "PicWidth":  IMG_SIZE,
-            "PicData":   b64
+            "Command":  "Draw/SendHttpGif",
+            "LcdArray": [1 if i==self.slot else 0 for i in range(SCREEN_COUNT)],
+            "PicNum":   1,
+            "PicOffset":0,
+            "PicID":    pid,
+            "PicSpeed": 100,
+            "PicWidth": IMG_SIZE,
+            "PicData":  b64
         }
         requests.post(f"http://{DEVICE_IP}/post", json=payload)

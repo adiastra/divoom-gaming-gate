@@ -10,8 +10,7 @@ class CharactersTab(QWidget):
 
         for i in range(5):
             box = QGroupBox(f"Character {i+1}")
-            # Keep each character panel at least 300px wide
-            box.setMinimumWidth(300)
+            box.setMinimumWidth(250)
             box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
 
             ctrl = CharacterControl(i)
