@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+  <style>
+    body, html { margin:0; height:100%; overflow:hidden; background:transparent; }
+    #c { border:1px solid #444; background: #222; }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="512" height="512"></canvas>
+  <script>
+    // Fabric.js setup
+    const canvas = new fabric.Canvas('c', {
+      backgroundColor: '#222',
+      selection: true
+    });
+    canvas.setZoom(4);
+
+    // Frame storage + load guard
+    const frames = [];
+    let current = 0;
+    let playInterval = null;
+    let isLoading = false;
+
+    // Save current frame, but only if not in the middle of a load
+    function saveCurrent() {
+      if (!isLoading) {
+        frames[current] = canvas.toJSON();
+      }
+    }
+
+    // Load a frame by index
+    function loadFrame(idx) {
+      if (idx < 0 || idx >= frames.length) return;
+      isLoading = true;
+      canvas.clear();
+      canvas.loadFromJSON(frames[idx], () => {
+        canvas.renderAll();
+        current = idx;
+        isLoading = false;
+      });
+      return updateLabel();
+    }
+
+    // Return a "N/M" string for UI
+    function updateLabel() {
+      return `${current+1}/${frames.length}`;
+    }
+
+    // Initialize with one blank frame
+    frames.push(canvas.toJSON());
+
+    // Expose API to Qt
+    window.EditorAPI = {
+      newRect() {
+        const r = new fabric.Rect({
+          left: 50, top: 50, width: 100, height: 100,
+          fill: 'transparent', stroke: 'white', strokeWidth: 2,
+          cornerColor: 'cyan', cornerSize: 8
+        });
+        canvas.add(r).setActiveObject(r);
+      },
+      newText(txt) {
+        const t = new fabric.Text(txt, {
+          left: 60, top: 60, fill: 'white', fontSize: 24,
+          cornerColor: 'cyan', cornerSize: 8
+        });
+        canvas.add(t).setActiveObject(t);
+      },
+      clear() {
+        canvas.clear();
+        canvas.setBackgroundColor('#222');
+      },
+      exportFrame() {
+        return canvas.toDataURL({ format:'jpeg' });
+      },
+      addFrame() {
+        saveCurrent();
+        canvas.clear();
+        canvas.setBackgroundColor('#222');
+        frames.push(canvas.toJSON());
+        current = frames.length - 1;
+        return updateLabel();
+      },
+      cloneFrame() {
+        saveCurrent();
+        const copy = JSON.stringify(frames[current]);
+        frames.splice(current+1, 0, JSON.parse(copy));
+        return loadFrame(current+1);
+      },
+      prevFrame() {
+        saveCurrent();
+        if (current > 0) return loadFrame(current-1);
+        return updateLabel();
+      },
+      nextFrame() {
+        saveCurrent();
+        if (current < frames.length - 1) return loadFrame(current+1);
+        return updateLabel();
+      },
+      playAnimation(speedMs) {
+        if (playInterval) clearInterval(playInterval);
+        playInterval = setInterval(() => {
+          this.nextFrame();
+          if (current === frames.length - 1) {
+            saveCurrent();
+            loadFrame(0);
+          }
+        }, speedMs);
+      },
+      stopAnimation() {
+        if (playInterval) clearInterval(playInterval);
+        playInterval = null;
+      }
+    };
+
+    // Auto‐save edits when the user modifies the canvas
+    canvas.on('object:modified',   () => saveCurrent());
+    canvas.on('object:added',      () => saveCurrent());
+    canvas.on('object:removed',    () => saveCurrent());
+    canvas.on('text:changed',      () => saveCurrent());
+  </script>
+</body>
+</html>
