@@ -1,22 +1,14 @@
-import json
-import os
+# utils/config.py
 
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'config.json')
+import json, os
 
 class Config:
-    IP_ADDRESS = "10.10.10.122"
+    SETTINGS_FILE = os.path.join(os.path.dirname(__file__), '..', 'settings', 'settings.json')
 
-    @classmethod
-    def load(cls):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                data = json.load(f)
-                cls.IP_ADDRESS = data.get("ip_address", cls.IP_ADDRESS)
-        except FileNotFoundError:
-            pass
-
-    @classmethod
-    def save(cls):
-        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump({"ip_address": cls.IP_ADDRESS}, f, indent=2)
+    @staticmethod
+    def get_device_ip():
+        if os.path.exists(Config.SETTINGS_FILE):
+            with open(Config.SETTINGS_FILE, "r") as f:
+                settings = json.load(f)
+                return settings.get("device_ip", "")
+        return ""

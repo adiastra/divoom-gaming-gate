@@ -8,7 +8,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer
 
-DEVICE_IP       = Config.IP_ADDRESS
+# IP from config
+from utils.config import Config
+DEVICE_IP = Config.get_device_ip()
+
 SCREEN_COUNT    = 5
 IMG_SIZE        = 128
 DEFAULT_SPEED   = 100
@@ -173,7 +176,7 @@ class ScreenControl(QWidget):
     def send_to_screen(self):
         # Refresh IP
         global DEVICE_IP
-        DEVICE_IP = Config.IP_ADDRESS
+        DEVICE_IP = Config.get_device_ip()
 
         if not self.frames:
             return

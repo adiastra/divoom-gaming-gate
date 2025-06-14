@@ -9,8 +9,10 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
 from utils.image import compose_character_image
 
-# Now dynamic
-DEVICE_IP    = Config.IP_ADDRESS
+# IP from config 
+from utils.config import Config
+DEVICE_IP = Config.get_device_ip()
+
 SCREEN_COUNT = 5
 IMG_SIZE     = 128
 
@@ -82,7 +84,7 @@ class CharacterControl(QWidget):
     def send(self):
         # Reload IP in case changed
         global DEVICE_IP
-        DEVICE_IP = Config.IP_ADDRESS
+        DEVICE_IP = Config.get_device_ip()
 
         stats = {s: self.stat_boxes[s].value() for s in self.stat_boxes}
         name  = self.name_edit.text()
