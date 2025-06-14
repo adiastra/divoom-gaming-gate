@@ -4,123 +4,56 @@
   <meta charset="utf-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
   <style>
-    body, html { margin:0; height:100%; overflow:hidden; background:transparent; }
-    #c { border:1px solid #444; background: #222; }
+    body,html{margin:0;height:100%;overflow:hidden;background:transparent;}
+    #c{border:1px solid #444;background:#222;}
   </style>
 </head>
 <body>
   <canvas id="c" width="512" height="512"></canvas>
   <script>
-    // Fabric.js setup
-    const canvas = new fabric.Canvas('c', {
-      backgroundColor: '#222',
-      selection: true
-    });
+    const canvas = new fabric.Canvas('c',{backgroundColor:'#222',selection:true});
     canvas.setZoom(4);
 
-    // Frame storage + load guard
-    const frames = [];
-    let current = 0;
-    let playInterval = null;
-    let isLoading = false;
-
-    // Save current frame, but only if not in the middle of a load
-    function saveCurrent() {
-      if (!isLoading) {
-        frames[current] = canvas.toJSON();
-      }
-    }
-
-    // Load a frame by index
-    function loadFrame(idx) {
-      if (idx < 0 || idx >= frames.length) return;
-      isLoading = true;
-      canvas.clear();
-      canvas.loadFromJSON(frames[idx], () => {
-        canvas.renderAll();
-        current = idx;
-        isLoading = false;
-      });
-      return updateLabel();
-    }
-
-    // Return a "N/M" string for UI
-    function updateLabel() {
-      return `${current+1}/${frames.length}`;
-    }
-
-    // Initialize with one blank frame
+    const frames=[];let current=0;let playInt=null;let loading=false;
+    function saveCur(){!loading&&(frames[current]=canvas.toJSON());}
+    function load(idx){
+      if(idx<0||idx>=frames.length)return;
+      loading=true;canvas.clear();
+      canvas.loadFromJSON(frames[idx],()=>{canvas.renderAll();current=idx;loading=false;});
+      return `${current+1}/${frames.length}`;}
     frames.push(canvas.toJSON());
 
-    // Expose API to Qt
-    window.EditorAPI = {
-      newRect() {
-        const r = new fabric.Rect({
-          left: 50, top: 50, width: 100, height: 100,
-          fill: 'transparent', stroke: 'white', strokeWidth: 2,
-          cornerColor: 'cyan', cornerSize: 8
+    window.EditorAPI={
+      newRect(){canvas.add(new fabric.Rect({left:50,top:50,width:100,height:100,
+        fill:'transparent',stroke:'white',strokeWidth:2,cornerColor:'cyan',cornerSize:8}))
+        .setActiveObject(canvas.item(canvas.size()-1));},
+      newText(t){canvas.add(new fabric.Text(t,{left:60,top:60,fill:'white',
+        fontSize:24,cornerColor:'cyan',cornerSize:8}))
+        .setActiveObject(canvas.item(canvas.size()-1));},
+      clear(){canvas.clear();canvas.setBackgroundColor('#222');},
+      exportFrame(){return canvas.toDataURL({format:'png'});},
+      exportAllFrames(){
+        saveCur();
+        return frames.map(js=>{
+            const sc=new fabric.StaticCanvas(null,{width:512,height:512,backgroundColor:'#222'});
+            sc.setZoom(4);
+            sc.loadFromJSON(js,sc.renderAll.bind(sc));
+            return sc.toDataURL({format:'png'});
         });
-        canvas.add(r).setActiveObject(r);
       },
-      newText(txt) {
-        const t = new fabric.Text(txt, {
-          left: 60, top: 60, fill: 'white', fontSize: 24,
-          cornerColor: 'cyan', cornerSize: 8
-        });
-        canvas.add(t).setActiveObject(t);
-      },
-      clear() {
-        canvas.clear();
-        canvas.setBackgroundColor('#222');
-      },
-      exportFrame() {
-        return canvas.toDataURL({ format:'jpeg' });
-      },
-      addFrame() {
-        saveCurrent();
-        canvas.clear();
-        canvas.setBackgroundColor('#222');
-        frames.push(canvas.toJSON());
-        current = frames.length - 1;
-        return updateLabel();
-      },
-      cloneFrame() {
-        saveCurrent();
-        const copy = JSON.stringify(frames[current]);
-        frames.splice(current+1, 0, JSON.parse(copy));
-        return loadFrame(current+1);
-      },
-      prevFrame() {
-        saveCurrent();
-        if (current > 0) return loadFrame(current-1);
-        return updateLabel();
-      },
-      nextFrame() {
-        saveCurrent();
-        if (current < frames.length - 1) return loadFrame(current+1);
-        return updateLabel();
-      },
-      playAnimation(speedMs) {
-        if (playInterval) clearInterval(playInterval);
-        playInterval = setInterval(() => {
-          this.nextFrame();
-          if (current === frames.length - 1) {
-            saveCurrent();
-            loadFrame(0);
-          }
-        }, speedMs);
-      },
-      stopAnimation() {
-        if (playInterval) clearInterval(playInterval);
-        playInterval = null;
-      }
+      addFrame(){saveCur();canvas.clear();canvas.setBackgroundColor('#222');
+        frames.push(canvas.toJSON());current=frames.length-1;return `${current+1}/${frames.length}`;},
+      cloneFrame(){saveCur();frames.splice(current+1,0,JSON.parse(JSON.stringify(frames[current])));
+        return load(current+1);},
+      prevFrame(){saveCur();if(current>0)return load(current-1);return `${current+1}/${frames.length}`;},
+      nextFrame(){saveCur();if(current<frames.length-1)return load(current+1);return `${current+1}/${frames.length}`;},
+      playAnimation(ms){playInt&&clearInterval(playInt);
+        playInt=setInterval(()=>{this.nextFrame();if(current===frames.length-1){saveCur();load(0);}},ms);},
+      stopAnimation(){playInt&&clearInterval(playInt);playInt=null;}
     };
 
-    // Auto‐save edits when the user modifies the canvas
-    canvas.on('object:modified',   () => saveCurrent());
-    canvas.on('object:added',      () => saveCurrent());
-    canvas.on('object:removed',    () => saveCurrent());
-    canvas.on('text:changed',      () => saveCurrent());
+    ['object:modified','object:added','object:removed','text:changed']
+      .forEach(ev=>canvas.on(ev,saveCur));
   </script>
 </body>
 </html>
