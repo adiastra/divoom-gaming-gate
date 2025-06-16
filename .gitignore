@@ -1,1 +1,53 @@
+# Byte-compiled / optimized Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+__MACOSX/
+
+# Editor swap & backup files
+*~
+*.swp
+*.bak
+
+# Logs
+*.log
+
+# Python coverage
+.coverage
+htmlcov/
+*.cover
+coverage.xml
+
+# If using Fabric.js build tools or other front-end pipelines:
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
