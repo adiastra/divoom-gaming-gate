@@ -29,6 +29,8 @@ class DesignerTab(QWidget):
             b = QToolButton(text=txt, toolTip=tip, autoRaise=True)
             b.setStyleSheet("color:white;font-size:18px"); b.clicked.connect(cb); tlay.addWidget(b)
         tbtn('▭', "Add rectangle", lambda: self._js("EditorAPI.newRect();"))
+        tbtn('◯', "Add circle", lambda: self._js("EditorAPI.newCircle();"))
+        tbtn('⬟', "Add polygon",   lambda: self._js("EditorAPI.newPolygon();")) 
         tbtn('T', "Add text", self._add_text)
         tbtn('🗑', "Clear",    lambda: self._js("EditorAPI.clear();"))
         tbtn('📤', "Send to screen", self._send)
