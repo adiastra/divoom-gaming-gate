@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-  <canvas id="c" width="512" height="512"></canvas>
+  <canvas id="c" width="512" height="512" tabindex="0"></canvas>
   <script>
     // --- Fabric.js canvas setup ---
     const canvas = new fabric.Canvas('c', {
@@ -221,6 +221,34 @@
         if (current >= frames.length) current = frames.length - 1;
         load(current);
       },
+      setSelectMode() {
+        canvas.isDrawingMode = false;
+        canvas.selection = true;
+        canvas.discardActiveObject();
+        canvas.renderAll();
+      },
+      toggleDrawMode(forceOn) {
+        canvas.isDrawingMode = (forceOn === true) ? true : !canvas.isDrawingMode;
+        canvas.selection = !canvas.isDrawingMode;
+        canvas.freeDrawingBrush.color = 'white';
+        canvas.freeDrawingBrush.width = 4;
+        canvas.renderAll();
+        saveCur();
+      },
+      setBrushWidth(val) {
+        canvas.freeDrawingBrush.width = val;
+      },
+      getSelectedStrokeWidth() {
+        const obj = canvas.getActiveObject();
+        if (obj && obj.strokeWidth) {
+          if (pyObj && pyObj.setStrokeWidth) {
+            pyObj.setStrokeWidth(obj.strokeWidth);
+          }
+        } else if (pyObj && pyObj.setStrokeWidth) {
+          // If nothing selected, send brush width
+          pyObj.setStrokeWidth(canvas.freeDrawingBrush.width);
+        }
+      },
     };
 
     [
@@ -229,6 +257,7 @@
       'object:removed',
       'text:changed'
     ].forEach(ev => canvas.on(ev, saveCur));
+    canvas.on('path:created', saveCur);
 
     // --- WebChannel setup ---
     var pyObj = null;
@@ -250,6 +279,13 @@
     canvas.on('selection:created', sendSelectionType);
     canvas.on('selection:updated', sendSelectionType);
     canvas.on('selection:cleared', sendSelectionType);
+
+    // Set the initial tool to select
+    pyObj.set_tool('select');
+
+    document.getElementById('c').addEventListener('mousedown', function() {
+      this.focus();
+    });
   </script>
 </body>
 </html>

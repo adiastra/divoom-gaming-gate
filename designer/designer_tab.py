@@ -1,10 +1,11 @@
 import os, json, base64, io, requests
 from PIL import Image
 from PyQt5.QtCore import Qt, QUrl, pyqtSlot
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QLabel,
-    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QComboBox, QSizePolicy, QFileDialog
+
+    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QComboBox, QSizePolicy, QFileDialog, QSlider
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
@@ -26,15 +27,30 @@ class DesignerTab(QWidget):
         # ─── Top toolbar ──────────────────────────────────────────────────────
         top = QWidget(); top.setStyleSheet("background:#3c3c3c")
         tlay = QHBoxLayout(top); tlay.setContentsMargins(4,4,4,4); tlay.setSpacing(8)
-        def tbtn(txt, tip, cb):
-            b = QToolButton(text=txt, toolTip=tip, autoRaise=True)
-            b.setStyleSheet("color:white;font-size:18px"); b.clicked.connect(cb); tlay.addWidget(b)
-        tbtn('▭', "Add rectangle", lambda: self._js("EditorAPI.newRect();"))
-        tbtn('◯', "Add circle", lambda: self._js("EditorAPI.newCircle();"))
-        tbtn('⬟', "Add polygon", lambda: self._js(f"EditorAPI.newPolygon({self.poly_sides_spin.value()});")) 
-        tbtn('／', "Add line", lambda: self._js("EditorAPI.newLine();"))
-        tbtn('T', "Add text", self._add_text)
-        tbtn('🗑', "Clear",    lambda: self._js("EditorAPI.clear();"))
+        def tbtn(txt_or_icon, tip, cb, ref=None):
+            b = QToolButton(toolTip=tip, autoRaise=True)
+            if isinstance(txt_or_icon, QIcon):
+                b.setIcon(txt_or_icon)
+            else:
+                b.setText(txt_or_icon)
+            b.setStyleSheet("color:white;font-size:18px")
+            b.clicked.connect(cb)
+            tlay.addWidget(b)
+            if ref:
+                self.tool_buttons[ref] = b
+            return b
+
+        self.tool_buttons = {}  # Store references to tool buttons
+
+        # Add "Select" tool first
+        tbtn('🖱️', "Select/move objects", lambda: self.set_tool('select'), ref='select')
+        tbtn('▭', "Add rectangle", lambda: self.set_tool('rect'), ref='rect')
+        tbtn('◯', "Add circle", lambda: self.set_tool('circle'), ref='circle')
+        tbtn('⬟', "Add polygon", lambda: self.set_tool('polygon'), ref='polygon')
+        tbtn('／', "Add line", lambda: self.set_tool('line'), ref='line')
+        tbtn('T', "Add text", lambda: self.set_tool('text'), ref='text')
+        tbtn('🖌️', "Freehand draw", lambda: self.set_tool('draw'), ref='draw')
+        tbtn('❌', "Delete selected object", lambda: self._js("EditorAPI.deleteObject();"))
         tbtn('📤', "Send to screen", self._send)
         tlay.addStretch()
         root.addWidget(top)
@@ -100,9 +116,19 @@ class DesignerTab(QWidget):
 
         wlay = QHBoxLayout()
         wlay.addWidget(QLabel("Width", styleSheet="color:white"))
-        self.stroke_spin = QSpinBox(); self.stroke_spin.setRange(1,20)
-        self.stroke_spin.valueChanged.connect(self._set_stroke_width)
-        wlay.addWidget(self.stroke_spin); play.addLayout(wlay)
+        self.stroke_slider = QSlider(Qt.Horizontal)
+        self.stroke_slider.setRange(1, 32)
+        self.stroke_slider.setValue(2)
+        self.stroke_slider.setFixedWidth(100)
+        self.stroke_slider.setToolTip("Stroke width")
+        self.stroke_slider.valueChanged.connect(self._set_stroke_width)
+        self.stroke_width_label = QLabel("2", styleSheet="color:white")
+        self.stroke_slider.valueChanged.connect(
+            lambda v: self.stroke_width_label.setText(str(v))
+        )
+        wlay.addWidget(self.stroke_slider)
+        wlay.addWidget(self.stroke_width_label)
+        play.addLayout(wlay)
 
         self.font_label = QLabel("Font", styleSheet="color:white")
         play.addWidget(self.font_label)
@@ -149,10 +175,10 @@ class DesignerTab(QWidget):
 
         play.addLayout(zlay)
 
-        del_btn = QToolButton(text='❌', toolTip="Delete selected object", autoRaise=True)
+        del_btn = QToolButton(text='🗑', toolTip="Clear frame", autoRaise=True)
         del_btn.setStyleSheet("color:#ff4444;font-size:18px")
-        del_btn.clicked.connect(lambda: self._js("EditorAPI.deleteObject();"))
-        play.addWidget(del_btn)
+        del_btn.clicked.connect(lambda: self._js("EditorAPI.clear();"))
+        bl.addWidget(del_btn)
 
         play.addStretch()
         mid.addWidget(prop); mid.addStretch()
@@ -164,6 +190,8 @@ class DesignerTab(QWidget):
         export_btn.setStyleSheet("color:white;font-size:16px")
         export_btn.clicked.connect(self.export_gif)
         bl.addWidget(export_btn)
+        
+        self.setFocusPolicy(Qt.StrongFocus)
 
     # ───────────────────── JavaScript helper ────────────────────────────────
     def _js(self, code):
@@ -182,7 +210,12 @@ class DesignerTab(QWidget):
     def _change_stroke(self):
         col = QColorDialog.getColor(QColor("white"), self, "Stroke")
         if col.isValid(): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('stroke','{col.name()}');canvas.renderAll();}}")
-    def _set_stroke_width(self,w): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('strokeWidth',{w});canvas.renderAll();}}")
+    def _set_stroke_width(self, w):
+        # Called when the slider is changed
+        if getattr(self, 'current_tool', None) == 'draw':
+            self._js(f"EditorAPI.setBrushWidth({w});")
+        else:
+            self._js(f"var o=canvas.getActiveObject();if(o){{o.set('strokeWidth',{w});canvas.renderAll();}}")
     def _set_font       (self,f ): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('fontFamily','{f}');canvas.renderAll();}}")
     def _set_font_size  (self,s ): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('fontSize',{s});canvas.renderAll();}}")
 
@@ -276,6 +309,8 @@ class DesignerTab(QWidget):
         self.font_combo.setVisible(is_text)
         self.font_size_label.setVisible(is_text)
         self.font_spin.setVisible(is_text)
+        # Get stroke width from JS
+        self._js("EditorAPI.getSelectedStrokeWidth();")
 
     @pyqtSlot()
     def highlightPlay(self):
@@ -289,3 +324,63 @@ class DesignerTab(QWidget):
     def updateFrameLabel(self, current, total):
         # Frame numbers are 1-based for display
         self.frame_lbl.setText(f"{current+1}/{total}")
+
+    @pyqtSlot(int)
+    def update_brush_width(self, val):
+        self._js(f"EditorAPI.setBrushWidth({val});")
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            self._js("""
+                if (canvas.getActiveObject() && !(canvas.getActiveObject().isEditing)) {
+                    EditorAPI.deleteObject();
+                }
+            """)
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def set_tool(self, tool):
+        # Only highlight select and draw tools
+        for key, btn in self.tool_buttons.items():
+            if key in ('select', 'draw') and tool == key:
+                btn.setStyleSheet(
+                    "color:white;font-size:18px;"
+                    "background:#6cf;"
+                    "border:2px solid #39f;"
+                    "border-radius:6px;"
+                    "box-shadow: 0 2px 8px #39f;"
+                )
+                btn.setAutoRaise(False)
+            else:
+                btn.setStyleSheet("color:white;font-size:18px;background:;border:;box-shadow:none;")
+                btn.setAutoRaise(True)
+
+        self.current_tool = tool
+        if tool == 'select':
+            self._js("EditorAPI.setSelectMode();")
+        elif tool == 'draw':
+            self._js("EditorAPI.toggleDrawMode(true);")
+            self._js("if (pyObj && pyObj.setStrokeWidth) pyObj.setStrokeWidth(canvas.freeDrawingBrush.width);")
+        elif tool == 'rect':
+            self._js("EditorAPI.newRect();")
+            self.set_tool('select')  # <-- Highlight select after action
+        elif tool == 'circle':
+            self._js("EditorAPI.newCircle();")
+            self.set_tool('select')
+        elif tool == 'polygon':
+            self._js(f"EditorAPI.newPolygon({self.poly_sides_spin.value()});")
+            self.set_tool('select')
+        elif tool == 'line':
+            self._js("EditorAPI.newLine();")
+            self.set_tool('select')
+        elif tool == 'text':
+            self._add_text()
+            self.set_tool('select')
+
+    @pyqtSlot(int)
+    def setStrokeWidth(self, width):
+        self.stroke_slider.blockSignals(True)
+        self.stroke_slider.setValue(width)
+        self.stroke_width_label.setText(str(width))  # <-- Add this line
+        self.stroke_slider.blockSignals(False)
