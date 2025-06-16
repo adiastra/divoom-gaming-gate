@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -19,6 +20,7 @@
 <body>
   <canvas id="c" width="512" height="512"></canvas>
   <script>
+    // --- Fabric.js canvas setup ---
     const canvas = new fabric.Canvas('c', {
       backgroundColor: '#222',
       selection: true
@@ -43,6 +45,10 @@
       canvas.loadFromJSON(frames[idx], () => {
         canvas.renderAll();
         current = idx;
+        // Update frame label in Python
+        if (pyObj && pyObj.updateFrameLabel) {
+          pyObj.updateFrameLabel(current, frames.length);
+        }
         loading = false;
       });
       return `${current + 1}/${frames.length}`;
@@ -76,9 +82,8 @@
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
       },
-      newPolygon() {
-        // Regular hexagon as default
-        const sides = 6;
+      newPolygon(sides = 6) {
+        sides = Math.max(3, Math.min(12, Number(sides) || 6));
         const radius = 50;
         const centerX = 100;
         const centerY = 100;
@@ -108,6 +113,17 @@
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
       },
+      newLine() {
+        // Add a simple diagonal line
+        const line = new fabric.Line([60, 60, 160, 160], {
+          stroke: 'white',
+          strokeWidth: 2,
+          selectable: true,
+          cornerColor: 'cyan',
+          cornerSize: 8
+        });
+        canvas.add(line).setActiveObject(line);
+      },
       clear() {
         canvas.clear();
         canvas.setBackgroundColor('#222');
@@ -130,10 +146,17 @@
       },
       addFrame() {
         saveCur();
-        canvas.clear();
-        canvas.setBackgroundColor('#222');
-        frames.push(canvas.toJSON());
-        current = frames.length - 1;
+        // Create a blank frame without clearing the current canvas
+        let blank;
+        {
+          // Temporarily clear, get blank, then restore
+          const old = canvas.toJSON();
+          canvas.clear();
+          blank = canvas.toJSON();
+          canvas.loadFromJSON(old, canvas.renderAll.bind(canvas));
+        }
+        frames.push(blank);
+        load(frames.length - 1); // Switch to the new (blank) frame
         return `${current + 1}/${frames.length}`;
       },
       cloneFrame() {
@@ -148,23 +171,56 @@
       },
       nextFrame() {
         saveCur();
-        if (current < frames.length - 1) return load(current + 1);
-        return `${current + 1}/${frames.length}`;
+        // Always wrap to 0 after last frame
+        if (current < frames.length - 1) {
+          return load(current + 1);
+        } else {
+          return load(0);
+        }
       },
       playAnimation(ms) {
         if (playInt) clearInterval(playInt);
+        if (pyObj && pyObj.highlightPlay) pyObj.highlightPlay();
         playInt = setInterval(() => {
-          this.nextFrame();
-          if (current === frames.length - 1) {
-            saveCur();
-            load(0);
-          }
+          EditorAPI.nextFrame();
         }, ms);
       },
       stopAnimation() {
         if (playInt) clearInterval(playInt);
         playInt = null;
-      }
+        if (pyObj && pyObj.unhighlightPlay) pyObj.unhighlightPlay();
+      },
+      zUp() {
+        const obj = canvas.getActiveObject();
+        if (obj) {
+          canvas.bringForward(obj);
+          canvas.renderAll();
+          saveCur();
+        }
+      },
+      zDown() {
+        const obj = canvas.getActiveObject();
+        if (obj) {
+          canvas.sendBackwards(obj);
+          canvas.renderAll();
+          saveCur();
+        }
+      },
+      deleteObject() {
+        const obj = canvas.getActiveObject();
+        if (obj) {
+          canvas.remove(obj);
+          saveCur();
+          canvas.discardActiveObject();
+          canvas.requestRenderAll();
+        }
+      },
+      removeFrame() {
+        if (frames.length <= 1) return; // Always keep at least one frame
+        frames.splice(current, 1);
+        if (current >= frames.length) current = frames.length - 1;
+        load(current);
+      },
     };
 
     [
@@ -173,6 +229,27 @@
       'object:removed',
       'text:changed'
     ].forEach(ev => canvas.on(ev, saveCur));
+
+    // --- WebChannel setup ---
+    var pyObj = null;
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      pyObj = channel.objects.pyObj;
+    });
+
+    function sendSelectionType() {
+      let type = '';
+      const obj = canvas.getActiveObject();
+      if (obj) {
+        type = obj.type;
+      }
+      if (pyObj && pyObj.selectionChanged) {
+        pyObj.selectionChanged(type);
+      }
+    }
+
+    canvas.on('selection:created', sendSelectionType);
+    canvas.on('selection:updated', sendSelectionType);
+    canvas.on('selection:cleared', sendSelectionType);
   </script>
 </body>
 </html>
