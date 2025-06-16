@@ -48,12 +48,12 @@ class DesignerTab(QWidget):
         play = QVBoxLayout(prop); play.setContentsMargins(8,8,8,8); play.setSpacing(10)
         play.addWidget(QLabel("Object Properties", alignment=Qt.AlignCenter))
 
-        fbtn = QToolButton(text='⬤', toolTip="Fill", autoRaise=True)
-        fbtn.setStyleSheet("color:white;font-size:24px"); fbtn.clicked.connect(self._change_fill)
+        fbtn = QToolButton(text='Fill Color', toolTip="Fill", autoRaise=True)
+        fbtn.setStyleSheet("color:white;font-size:12px"); fbtn.clicked.connect(self._change_fill)
         play.addWidget(fbtn)
 
-        sbtn = QToolButton(text='◯', toolTip="Stroke", autoRaise=True)
-        sbtn.setStyleSheet("color:white;font-size:24px"); sbtn.clicked.connect(self._change_stroke)
+        sbtn = QToolButton(text='Stroke Color', toolTip="Stroke", autoRaise=True)
+        sbtn.setStyleSheet("color:white;font-size:12px"); sbtn.clicked.connect(self._change_stroke)
         play.addWidget(sbtn)
 
         wlay = QHBoxLayout()
