@@ -135,11 +135,11 @@
         saveCur();
         return frames.map(js => {
           const sc = new fabric.StaticCanvas(null, {
-            width: 512,
-            height: 512,
+            width: 128,
+            height: 128,
             backgroundColor: '#222'
           });
-          sc.setZoom(4);
+          sc.setZoom(1); // No zoom for 128x128 export
           sc.loadFromJSON(js, sc.renderAll.bind(sc));
           return sc.toDataURL({ format: 'png' });
         });

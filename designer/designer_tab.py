@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QUrl, pyqtSlot
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QLabel,
-    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QComboBox, QSizePolicy
+    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QComboBox, QSizePolicy, QFileDialog
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
@@ -159,6 +159,12 @@ class DesignerTab(QWidget):
 
         root.addLayout(mid, 1)
 
+        # --- Export button (added) ---
+        export_btn = QToolButton(text='💾', toolTip="Export as GIF/PNG", autoRaise=True)
+        export_btn.setStyleSheet("color:white;font-size:16px")
+        export_btn.clicked.connect(self.export_gif)
+        bl.addWidget(export_btn)
+
     # ───────────────────── JavaScript helper ────────────────────────────────
     def _js(self, code):
         self.view.page().runJavaScript(code, self._update_frame_lbl)
@@ -232,6 +238,33 @@ class DesignerTab(QWidget):
                 )
             except Exception as exc:
                 QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+
+        self.view.page().runJavaScript("EditorAPI.exportAllFrames();", process)
+
+    def export_gif(self):
+        # Ask JS for all frames as PNG data URLs
+        def process(frames_js):
+            frames = frames_js if isinstance(frames_js, list) else []
+            if not frames:
+                QMessageBox.warning(self, "Export Error", "No frames exported.")
+                return
+            imgs = []
+            for url in frames:
+                b64_part = url.split(",", 1)[1] if "," in url else url
+                img = Image.open(io.BytesIO(base64.b64decode(b64_part))).convert("RGB")
+                imgs.append(img.resize((128, 128), Image.NEAREST))
+            if not imgs:
+                QMessageBox.warning(self, "Export Error", "No images to export.")
+                return
+            # Ask user for file path
+            path, _ = QFileDialog.getSaveFileName(self, "Save GIF/PNG", "", "GIF Image (*.gif);;PNG Image (*.png)")
+            if not path:
+                return
+            if path.lower().endswith('.gif') or (len(imgs) > 1 and not path.lower().endswith('.png')):
+                imgs[0].save(path, save_all=True, append_images=imgs[1:], duration=100, loop=0, optimize=False)
+            else:
+                imgs[0].save(path, format="PNG")
+            QMessageBox.information(self, "Export", f"Saved: {path}")
 
         self.view.page().runJavaScript("EditorAPI.exportAllFrames();", process)
 
