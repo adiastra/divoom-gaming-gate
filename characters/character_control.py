@@ -26,8 +26,12 @@ PRESETS_FILE = os.path.join(CHARACTER_DIR, "system_presets.json")
 
 def load_system_presets():
     if os.path.exists(PRESETS_FILE):
-        with open(PRESETS_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(PRESETS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            # File is empty or invalid, treat as no presets
+            return {}
     return {}
 
 def save_system_presets(presets):
