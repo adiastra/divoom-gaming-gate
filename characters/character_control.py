@@ -395,16 +395,22 @@ class CharacterControl(QWidget):
         DEVICE_IP = Config.get_device_ip()
 
         stats = {}
-        for stat, (name_edit, current_edit, total_edit) in self.stat_boxes.items():
+        for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
+            try:
+                base = int(base_edit.text())
+            except ValueError:
+                base = base_edit.text()
             try:
                 current = int(current_edit.text())
             except ValueError:
                 current = current_edit.text()
-            try:
-                total = int(total_edit.text())
-            except ValueError:
-                total = total_edit.text()
-            stats[name_edit.text()] = {"current": current, "total": total}
+            modifier = modifier_edit.text() if modifier_edit.isVisible() else ""
+            stat_dict = {"base": base}
+            if current:
+                stat_dict["current"] = current
+            if modifier:
+                stat_dict["modifier"] = modifier
+            stats[name_edit.text()] = stat_dict
 
         name  = self.name_edit.text()
         img   = compose_character_image(

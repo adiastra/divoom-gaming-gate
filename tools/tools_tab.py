@@ -27,20 +27,25 @@ class ToolsTab(QWidget):
         scoreboard_layout.setSpacing(8)
 
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Home Score:", styleSheet="color:white"))
-        self.home_score = QSpinBox()
-        self.home_score.setRange(0, 999)
-        row2.addWidget(self.home_score)
-        row2.addWidget(QLabel("Away Score:", styleSheet="color:white"))
-        self.away_score = QSpinBox()
-        self.away_score.setRange(0, 999)
-        row2.addWidget(self.away_score)
+        row2.addWidget(QLabel("Blue Score:", styleSheet="color:white"))
+        self.blue_score = QSpinBox()
+        self.blue_score.setRange(0, 999)
+        row2.addWidget(self.blue_score)
+        row2.addWidget(QLabel("Red Score:", styleSheet="color:white"))
+        self.red_score = QSpinBox()
+        self.red_score.setRange(0, 999)
+        row2.addWidget(self.red_score)
         scoreboard_layout.addLayout(row2)
 
-        send_btn = QToolButton(text="Send Scoreboard", autoRaise=True)
-        send_btn.setStyleSheet("color:white;font-size:14px")
-        send_btn.clicked.connect(self.send_scoreboard)
-        scoreboard_layout.addWidget(send_btn, alignment=Qt.AlignRight)
+        # Automatically send scoreboard on score change
+        self.blue_score.valueChanged.connect(self.send_scoreboard)
+        self.red_score.valueChanged.connect(self.send_scoreboard)
+
+        # Remove the manual send button for scoreboard
+        # send_btn = QToolButton(text="Send Scoreboard", autoRaise=True)
+        # send_btn.setStyleSheet("color:white;font-size:14px")
+        # send_btn.clicked.connect(self.send_scoreboard)
+        # scoreboard_layout.addWidget(send_btn, alignment=Qt.AlignRight)
 
         # --- Countdown Timer Tool Group Box ---
         timer_group = QGroupBox("Countdown Timer")
@@ -174,10 +179,9 @@ class ToolsTab(QWidget):
 
     def send_scoreboard(self):
         ip = self.cfg.get_device_ip()
-        blue = self.home_score.value()
-        red = self.away_score.value()
+        blue = self.blue_score.value()
+        red = self.red_score.value()
         if not ip:
-            QMessageBox.warning(self, "Missing IP", "Configure the device IP in Settings.")
             return
         payload = {
             "Command": "Tools/SetScoreBoard",
@@ -185,20 +189,15 @@ class ToolsTab(QWidget):
             "RedScore": red
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
-            if resp.ok:
-                QMessageBox.information(self, "Success", "Scoreboard sent!")
-            else:
-                QMessageBox.warning(self, "Error", f"Device error: {resp.text}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
 
     def send_countdown(self):
         ip = self.cfg.get_device_ip()
         minutes = self.timer_minutes.value()
         seconds = self.timer_seconds.value()
         if not ip:
-            QMessageBox.warning(self, "Missing IP", "Configure the device IP in Settings.")
             return
         payload = {
             "Command": "Tools/SetTimer",
@@ -207,36 +206,26 @@ class ToolsTab(QWidget):
             "Status": 1  # 1 = start, 0 = stop
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
-            if resp.ok:
-                QMessageBox.information(self, "Success", "Countdown started!")
-            else:
-                QMessageBox.warning(self, "Error", f"Device error: {resp.text}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
 
     def send_stopwatch(self, status):
         ip = self.cfg.get_device_ip()
         if not ip:
-            QMessageBox.warning(self, "Missing IP", "Configure the device IP in Settings.")
             return
         payload = {
             "Command": "Tools/SetStopWatch",
             "Status": status  # 2:reset; 1: start; 0: stop
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
-            if resp.ok:
-                QMessageBox.information(self, "Success", "Stopwatch command sent!")
-            else:
-                QMessageBox.warning(self, "Error", f"Device error: {resp.text}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
 
     def send_buzzer(self):
         ip = self.cfg.get_device_ip()
         if not ip:
-            QMessageBox.warning(self, "Missing IP", "Configure the device IP in Settings.")
             return
         payload = {
             "Command": "Device/PlayBuzzer",
@@ -245,28 +234,19 @@ class ToolsTab(QWidget):
             "PlayTotalTime": self.buzzer_total.value()
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
-            if resp.ok:
-                QMessageBox.information(self, "Success", "Buzzer command sent!")
-            else:
-                QMessageBox.warning(self, "Error", f"Device error: {resp.text}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
 
     def send_noise(self, status):
         ip = self.cfg.get_device_ip()
         if not ip:
-            QMessageBox.warning(self, "Missing IP", "Configure the device IP in Settings.")
             return
         payload = {
             "Command": "Tools/SetNoiseStatus",
             "NoiseStatus": status  # 1 = start, 0 = stop
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
-            if resp.ok:
-                QMessageBox.information(self, "Success", "Noise command sent!")
-            else:
-                QMessageBox.warning(self, "Error", f"Device error: {resp.text}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
