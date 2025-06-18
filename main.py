@@ -4,6 +4,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 from screens.screens_tab import ScreensTab
 from characters.characters_tab import CharactersTab
+from tools.tools_tab import ToolsTab
 from designer.designer_tab import DesignerTab
 from settings.settings_tab import SettingsTab  # new line
 
@@ -14,8 +15,10 @@ class MainWindow(QMainWindow):
         tabs = QTabWidget()
         tabs.addTab(ScreensTab(),    "Screens")
         tabs.addTab(CharactersTab(), "Characters")
+        tabs.addTab(ToolsTab(), "Tools")
+        settings_tab = SettingsTab()
         tabs.addTab(DesignerTab(),   "Designer")
-        tabs.addTab(SettingsTab(),   "Settings")  # new line
+        tabs.addTab(settings_tab, "Settings")  
         self.setCentralWidget(tabs)
 
 if __name__ == "__main__":

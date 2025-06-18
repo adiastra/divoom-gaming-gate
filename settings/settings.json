@@ -1,3 +1,6 @@
 {
-  "device_ip": "10.10.10.122"
+  "device_ip": "10.10.10.122",
+  "timezone_city": "Denver (GMT-7)",
+  "dst": true,
+  "hour_mode": 1
 }

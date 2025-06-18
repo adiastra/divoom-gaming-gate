@@ -3,10 +3,14 @@ import time, io, base64, requests
 from PIL import Image, ImageSequence
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
-    QFileDialog, QSpinBox, QSlider, QComboBox
+    QFileDialog, QSpinBox, QSlider, QComboBox, QDialog, QLineEdit, QListWidget, QListWidgetItem, QMessageBox
 )
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPixmap, QImage, QIcon
+from PyQt5.QtCore import Qt, QTimer, QSize
+from io import BytesIO
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtCore import pyqtSlot, QObject
 
 # IP from config
 from utils.config import Config
@@ -51,6 +55,7 @@ class ScreenControl(QWidget):
 
         self.load_btn = QPushButton("Load")
         self.send_btn = QPushButton("Send")
+        self.gif_browser_btn = QPushButton("Giphy")
 
         self.speed_box = QSpinBox()
         self.speed_box.setRange(10, 2000)
@@ -82,7 +87,9 @@ class ScreenControl(QWidget):
         main.addLayout(mrow)
 
         brow = QHBoxLayout()
-        brow.addWidget(self.load_btn); brow.addWidget(self.send_btn)
+        brow.addWidget(self.load_btn)
+        brow.addWidget(self.gif_browser_btn)
+        brow.addWidget(self.send_btn)
         main.addLayout(brow)
 
         main.addLayout(self._labeled_row("Frame Speed:", self.speed_box))
@@ -94,6 +101,7 @@ class ScreenControl(QWidget):
         # Signals
         self.load_btn.clicked.connect(self.load_image)
         self.send_btn.clicked.connect(self.send_to_screen)
+        self.gif_browser_btn.clicked.connect(self.open_gif_browser)
 
     def _labeled_row(self, text, widget):
         row = QHBoxLayout()
@@ -202,3 +210,131 @@ class ScreenControl(QWidget):
                 "PicData":   b64
             }
             requests.post(f"http://{DEVICE_IP}/post", json=payload)
+
+    def open_gif_browser(self):
+        dlg = GifBrowserDialog(self)
+        if dlg.exec_() == QDialog.Accepted and dlg.selected_url:
+            self.load_gif_from_url(dlg.selected_url)
+
+    def load_gif_from_url(self, url):
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            img = Image.open(BytesIO(resp.content))
+            if getattr(img, "is_animated", False):
+                self.raw_frames = [fr.convert("RGB") for fr in ImageSequence.Iterator(img)]
+            else:
+                self.raw_frames = [img.convert("RGB")]
+            self.label.setText(f"Loaded {len(self.raw_frames)} frame(s) from Giphy")
+            self.apply_mode()
+            self._start_animation()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to load GIF from Giphy:\n{e}")
+
+class GifBrowserDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Giphy GIF Browser")
+        self.setMinimumSize(500, 500)
+        self.selected_url = None
+
+        layout = QVBoxLayout(self)
+
+        search_row = QHBoxLayout()
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("Search Giphy...")
+        self.search_edit.returnPressed.connect(self.do_search)  # Enable Enter key
+        search_btn = QPushButton("Search")
+        search_btn.clicked.connect(self.do_search)
+        search_row.addWidget(self.search_edit)
+        search_row.addWidget(search_btn)
+        layout.addLayout(search_row)
+
+        self.results = QWebEngineView()
+        layout.addWidget(self.results)
+
+        # Set initial dark background
+        initial_html = """
+        <html>
+          <head>
+            <style>
+              body { background: #232323; }
+            </style>
+          </head>
+          <body></body>
+        </html>
+        """
+        self.results.setHtml(initial_html)
+
+        use_btn = QPushButton("Use Selected GIF")
+        use_btn.clicked.connect(self.use_selected)
+        layout.addWidget(use_btn)
+
+        self.channel = QWebChannel()
+        self.bridge = GifBridge(self)
+        self.channel.registerObject('pyBridge', self.bridge)
+        self.results.page().setWebChannel(self.channel)
+
+        # Live search timer setup (correct place)
+        self.search_timer = QTimer(self)
+        self.search_timer.setSingleShot(True)
+        self.search_timer.timeout.connect(self.do_search)
+        self.search_edit.textChanged.connect(self._on_search_text_changed)
+
+    def _on_search_text_changed(self, text):
+        self.search_timer.start(400)  # 400 ms delay after last keypress
+
+    def do_search(self):
+        api_key = "VIq9eXKgVXMc9PdotSsjKOByAqyKmAOt"
+        q = self.search_edit.text().strip()
+        if not q:
+            return
+        url = f"https://api.giphy.com/v1/gifs/search?api_key={api_key}&q={q}&limit=20&rating=g"
+        try:
+            resp = requests.get(url, timeout=8)
+            resp.raise_for_status()
+            data = resp.json()
+            html = """
+            <html>
+              <head>
+                <style>
+                  body { background: #232323; }
+                  td { padding: 6px; }
+                </style>
+                <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+                <script>
+                  var pyBridge = null;
+                  new QWebChannel(qt.webChannelTransport, function(channel) {
+                    pyBridge = channel.objects.pyBridge;
+                  });
+                  function selectGif(url) {
+                    if (pyBridge) pyBridge.gifSelected(url);
+                  }
+                </script>
+              </head>
+              <body>
+                <table ><tr>
+            """
+            for i, gif in enumerate(data["data"]):
+                gif_url = gif["images"]["fixed_height"]["url"]
+                html += f'<td><img src="{gif_url}" width="100" height="100" onclick="selectGif(\'{gif_url}\')"></td>'
+                if (i+1) % 4 == 0:
+                    html += "</tr><tr>"
+            html += "</tr></table></body></html>"
+            self.results.setHtml(html)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to search Giphy:\n{e}")
+
+    def use_selected(self):
+        # This method is not used with QWebEngineView, but keep for compatibility
+        pass
+
+class GifBridge(QObject):
+    def __init__(self, dialog):
+        super().__init__()
+        self.dialog = dialog
+
+    @pyqtSlot(str)
+    def gifSelected(self, url):
+        self.dialog.selected_url = url
+        self.dialog.accept()
