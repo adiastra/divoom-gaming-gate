@@ -69,62 +69,68 @@ def compose_character_image(background_path, portrait_path, name, stats):
     # --- Draw name overlay at the top ---
     name_box_height = 22
     draw.rectangle([0, 0, 128, name_box_height], fill=(40, 40, 40, 180))
-    # Center the name
     try:
         bbox = draw.textbbox((0, 0), name, font=font)
         w = bbox[2] - bbox[0]
-        h = bbox[3] - bbox[1]
     except AttributeError:
-        w, h = font.getsize(name)
+        w, _ = font.getsize(name)
     draw.text(((128 - w) // 2, 4), name, fill=(255, 255, 255), font=font)
 
-    # --- Draw stats overlay below name ---
+    # --- Draw stats in two columns ---
+    stat_keys = list(stats.keys())
+    n = len(stat_keys)
+    left_stats = stat_keys[: (n + 1) // 2]
+    right_stats = stat_keys[(n + 1) // 2 :]
+
     stat_box_top = name_box_height + 2
-    stat_box_height = 16 * len(stats) + 4
+    stat_box_height = max(len(left_stats), len(right_stats)) * 16 + 4
     draw.rectangle([0, stat_box_top, 128, stat_box_top + stat_box_height], fill=(40, 40, 40, 180))
 
-    for i, (k, v) in enumerate(stats.items()):
-        y = stat_box_top + 2 + i * 16
-        base = str(v.get('base', ''))
-        current = str(v.get('current', ''))
-        modifier = str(v.get('modifier', ''))
-        try:
-            bold_font = ImageFont.truetype("arialbd.ttf", 14)
-        except Exception:
-            bold_font = font
-        draw.text((6, y), f"{k}: ", fill=(200, 200, 200), font=font)
-        x_offset = 6 + draw.textlength(f"{k}: ", font=font)
-        draw.text((x_offset, y), base, fill=(255, 255, 255), font=bold_font)
-        x_offset += draw.textlength(base, font=bold_font)
-        # Draw current if present
-        if current:
-            # Color based on percentage of base
+    for col, stat_list in enumerate([left_stats, right_stats]):
+        for i, k in enumerate(stat_list):
+            y = stat_box_top + 2 + i * 16
+            x = 6 if col == 0 else 68  # 68 leaves a gap between columns
+            v = stats[k]
+            base = str(v.get('base', ''))
+            current = str(v.get('current', ''))
+            modifier = str(v.get('modifier', ''))
+            abbr = k  # Use stat key directly
             try:
-                base_val = float(base)
-                curr_val = float(current)
-                if curr_val < base_val:
-                    pct = curr_val / base_val if base_val else 0
-                    if pct >= 0.7:
-                        curr_color = (0, 200, 0)
-                    elif pct >= 0.3:
-                        curr_color = (220, 180, 0)
-                    else:
-                        curr_color = (220, 0, 0)
-                else:
-                    curr_color = (0, 200, 0)
+                bold_font = ImageFont.truetype("arialbd.ttf", 14)
             except Exception:
-                curr_color = (200, 200, 200)
-            draw.text((x_offset, y), f" / {current}", fill=curr_color, font=font)
-            x_offset += draw.textlength(f" / {current}", font=font)
-        # Draw modifier if present
-        if modifier:
-            mod_color = (200, 200, 200)
-            mod_str = modifier.strip()
-            if mod_str.startswith('+'):
-                mod_color = (0, 200, 0)
-            elif mod_str.startswith('-'):
-                mod_color = (220, 0, 0)
-            draw.text((x_offset, y), f" ({modifier})", fill=mod_color, font=font)
+                bold_font = font
+            draw.text((x, y), f"{abbr}: ", fill=(200, 200, 200), font=font)
+            x_offset = x + draw.textlength(f"{abbr}: ", font=font)
+            draw.text((x_offset, y), base, fill=(255, 255, 255), font=bold_font)
+            x_offset += draw.textlength(base, font=bold_font)
+            # Draw current if present
+            if current:
+                try:
+                    base_val = float(base)
+                    curr_val = float(current)
+                    if curr_val < base_val:
+                        pct = curr_val / base_val if base_val else 0
+                        if pct >= 0.7:
+                            curr_color = (0, 200, 0)
+                        elif pct >= 0.3:
+                            curr_color = (220, 180, 0)
+                        else:
+                            curr_color = (220, 0, 0)
+                    else:
+                        curr_color = (0, 200, 0)
+                except Exception:
+                    curr_color = (200, 200, 200)
+                draw.text((x_offset, y), f" / {current}", fill=curr_color, font=font)
+                x_offset += draw.textlength(f" / {current}", font=font)
+            # Draw modifier if present
+            if modifier:
+                mod_color = (200, 200, 200)
+                mod_str = modifier.strip()
+                if mod_str.startswith('+'):
+                    mod_color = (0, 200, 0)
+                elif mod_str.startswith('-'):
+                    mod_color = (220, 0, 0)
+                draw.text((x_offset, y), f" ({modifier})", fill=mod_color, font=font)
     return bg
 
 class PresetSignalEmitter(QObject):
@@ -295,7 +301,8 @@ class CharacterControl(QWidget):
         self.update_preview()
 
     def add_stat(self):
-        stat, ok = QInputDialog.getText(self, "Add Stat", "Stat name:")
+        stat, ok = QInputDialog.getText(self, "Add Stat", "Stat abbreviation (e.g. STR, DEX):")
+        stat = stat.strip().upper()
         if ok and stat and stat not in self.char["stats"]:
             self.char["stats"][stat] = {"current": 0, "total": 0}
             self._rebuild_stats_ui()
@@ -308,6 +315,7 @@ class CharacterControl(QWidget):
             self.update_preview()
 
     def rename_stat(self, old, new):
+        new = new.strip().upper()
         if old != new and new and new not in self.char["stats"]:
             self.char["stats"][new] = self.char["stats"].pop(old)
             self._rebuild_stats_ui()
@@ -508,23 +516,23 @@ class CharacterControl(QWidget):
         # Add built-in presets
         builtins = {
             "D&D 5e": {
-                "Strength": {"base": 10},
-                "Dexterity": {"base": 10},
-                "Constitution": {"base": 10},
-                "Intelligence": {"base": 10},
-                "Wisdom": {"base": 10},
-                "Charisma": {"base": 10},
+                "STR": {"base": 10},
+                "DEX": {"base": 10},
+                "CON": {"base": 10},
+                "INT": {"base": 10},
+                "WIS": {"base": 10},
+                "CHA": {"base": 10},
                 "HP": {"base": 1},
                 "AC": {"base": 10},
-                "Speed": {"base": 30}
+                "SPD": {"base": 30}
             },
             "Genesys": {
-                "Brawn": {"base": 1},
-                "Agility": {"base": 1},
-                "Intellect": {"base": 1},
-                "Cunning": {"base": 1},
-                "Willpower": {"base": 1},
-                "Presence": {"base": 1}
+                "BRN": {"base": 1},
+                "AGI": {"base": 1},
+                "INT": {"base": 1},
+                "CUN": {"base": 1},
+                "WIL": {"base": 1},
+                "PRE": {"base": 1}
             }
         }
         self.builtin_presets = builtins  # Store for use in apply_system_preset
