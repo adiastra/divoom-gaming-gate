@@ -55,7 +55,7 @@ class ScreenControl(QWidget):
 
         self.load_btn = QPushButton("Load")
         self.send_btn = QPushButton("Send")
-        self.gif_browser_btn = QPushButton("Giphy")
+        self.gif_browser_btn = QPushButton("Tenor")
 
         self.speed_box = QSpinBox()
         self.speed_box.setRange(10, 2000)
@@ -225,16 +225,16 @@ class ScreenControl(QWidget):
                 self.raw_frames = [fr.convert("RGB") for fr in ImageSequence.Iterator(img)]
             else:
                 self.raw_frames = [img.convert("RGB")]
-            self.label.setText(f"Loaded {len(self.raw_frames)} frame(s) from Giphy")
+            self.label.setText(f"Loaded {len(self.raw_frames)} frame(s) from Tenor")
             self.apply_mode()
             self._start_animation()
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to load GIF from Giphy:\n{e}")
+            QMessageBox.warning(self, "Error", f"Failed to load GIF from Tenor:\n{e}")
 
 class GifBrowserDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Giphy GIF Browser")
+        self.setWindowTitle("Tenor GIF Browser")
         self.setMinimumSize(500, 500)
         self.selected_url = None
 
@@ -242,7 +242,7 @@ class GifBrowserDialog(QDialog):
 
         search_row = QHBoxLayout()
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search Giphy...")
+        self.search_edit.setPlaceholderText("Search Tenor...")
         self.search_edit.returnPressed.connect(self.do_search)  # Enable Enter key
         search_btn = QPushButton("Search")
         search_btn.clicked.connect(self.do_search)
@@ -285,11 +285,11 @@ class GifBrowserDialog(QDialog):
         self.search_timer.start(400)  # 400 ms delay after last keypress
 
     def do_search(self):
-        api_key = "VIq9eXKgVXMc9PdotSsjKOByAqyKmAOt"
+        api_key = "AIzaSyDW9J05UI8jOQsz-fqxs1yM6uUK0MkJ5tY"
         q = self.search_edit.text().strip()
         if not q:
             return
-        url = f"https://api.giphy.com/v1/gifs/search?api_key={api_key}&q={q}&limit=20&rating=g"
+        url = f"https://tenor.googleapis.com/v2/search?q={q}&key={api_key}&limit=20&media_filter=gif"
         try:
             resp = requests.get(url, timeout=8)
             resp.raise_for_status()
@@ -315,15 +315,15 @@ class GifBrowserDialog(QDialog):
               <body>
                 <table ><tr>
             """
-            for i, gif in enumerate(data["data"]):
-                gif_url = gif["images"]["fixed_height"]["url"]
+            for i, result in enumerate(data["results"]):
+                gif_url = result["media_formats"]["gif"]["url"]
                 html += f'<td><img src="{gif_url}" width="100" height="100" onclick="selectGif(\'{gif_url}\')"></td>'
                 if (i+1) % 4 == 0:
                     html += "</tr><tr>"
             html += "</tr></table></body></html>"
             self.results.setHtml(html)
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to search Giphy:\n{e}")
+            QMessageBox.warning(self, "Error", f"Failed to search Tenor:\n{e}")
 
     def use_selected(self):
         # This method is not used with QWebEngineView, but keep for compatibility
