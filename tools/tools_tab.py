@@ -12,10 +12,20 @@ class ToolsTab(QWidget):
         self.setStyleSheet("background:#2b2b2b;")
         self.cfg = Config()
 
-        # Use a horizontal layout for side-by-side tools
+        # Main horizontal layout
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(16, 16, 16, 16)
         main_layout.setSpacing(16)
+
+        # --- API Tools Vertical Group Box ---
+        api_tools_group = QGroupBox("API Tools")
+        api_tools_group.setStyleSheet(
+            "QGroupBox { color: white; font-size: 16px; border: 2px solid #888; border-radius: 8px; margin-top: 8px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 6px 0 6px; }"
+        )
+        api_tools_layout = QVBoxLayout(api_tools_group)
+        api_tools_layout.setContentsMargins(12, 12, 12, 12)
+        api_tools_layout.setSpacing(16)
 
         # --- Scoreboard Tool Group Box ---
         scoreboard_group = QGroupBox("Scoreboard")
@@ -170,15 +180,16 @@ class ToolsTab(QWidget):
 
         noise_layout.addLayout(btn_lay)
 
-        # Add all group boxes to the horizontal layout
-        main_layout.addWidget(scoreboard_group, alignment=Qt.AlignTop | Qt.AlignLeft)
-        main_layout.addWidget(timer_group, alignment=Qt.AlignTop | Qt.AlignLeft)
-        main_layout.addWidget(stopwatch_group, alignment=Qt.AlignTop | Qt.AlignLeft)
-        main_layout.addWidget(buzzer_group, alignment=Qt.AlignTop | Qt.AlignLeft)
-        main_layout.addWidget(noise_group, alignment=Qt.AlignTop | Qt.AlignLeft)
+        # Add all tool group boxes to the API Tools vertical layout
+        api_tools_layout.addWidget(scoreboard_group)
+        api_tools_layout.addWidget(timer_group)
+        api_tools_layout.addWidget(stopwatch_group)
+        api_tools_layout.addWidget(buzzer_group)
+        api_tools_layout.addWidget(noise_group)
+        api_tools_layout.addStretch()
 
-
-
+        # Add API Tools group to the main layout (left side)
+        main_layout.addWidget(api_tools_group, alignment=Qt.AlignTop | Qt.AlignLeft)
         main_layout.addStretch()
 
     def send_scoreboard(self):
@@ -255,7 +266,7 @@ class ToolsTab(QWidget):
         except Exception:
             pass
 
-   
+    def send_http_text(self):
         ip = self.cfg.get_device_ip()
         if not ip:
             return
