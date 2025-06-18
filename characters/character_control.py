@@ -448,7 +448,10 @@ class CharacterControl(QWidget):
 
     def load_character_dialog(self):
         # List all .json files in CHARACTER_DIR except screen_assignments.json
-        files = [f for f in os.listdir(CHARACTER_DIR) if f.endswith(".json") and f != "screen_assignments.json"]
+        files = [
+            f for f in os.listdir(CHARACTER_DIR)
+            if f.endswith(".json") and f not in ("screen_assignments.json", "system_presets.json")
+        ]
         if not files:
             return
         from PyQt5.QtWidgets import QInputDialog

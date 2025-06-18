@@ -189,6 +189,10 @@ class ScreenControl(QWidget):
         if not self.frames:
             return
 
+        if not DEVICE_IP or DEVICE_IP.strip() == "":
+            QMessageBox.warning(self, "No IP Set", "Please set the Divoom device IP in the settings before sending.")
+            return
+
         frames_to_send = self.frames
         pic_id = int(time.time())
         lcd = [0]*SCREEN_COUNT
@@ -209,7 +213,11 @@ class ScreenControl(QWidget):
                 "PicWidth":  IMG_SIZE,
                 "PicData":   b64
             }
-            requests.post(f"http://{DEVICE_IP}/post", json=payload)
+            try:
+                requests.post(f"http://{DEVICE_IP}/post", json=payload)
+            except Exception as e:
+                QMessageBox.warning(self, "Network Error", f"Failed to send to device:\n{e}")
+                break
 
     def open_gif_browser(self):
         dlg = GifBrowserDialog(self)
