@@ -1,7 +1,8 @@
 import requests
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QLabel, QHBoxLayout, QLineEdit, QSpinBox, QToolButton, QMessageBox
+    QWidget, QVBoxLayout, QGroupBox, QLabel, QHBoxLayout, QLineEdit, QSpinBox, QToolButton, QMessageBox,
+    QColorDialog, QComboBox
 )
 from utils.config import Config
 
@@ -175,6 +176,9 @@ class ToolsTab(QWidget):
         main_layout.addWidget(stopwatch_group, alignment=Qt.AlignTop | Qt.AlignLeft)
         main_layout.addWidget(buzzer_group, alignment=Qt.AlignTop | Qt.AlignLeft)
         main_layout.addWidget(noise_group, alignment=Qt.AlignTop | Qt.AlignLeft)
+
+
+
         main_layout.addStretch()
 
     def send_scoreboard(self):
@@ -245,6 +249,45 @@ class ToolsTab(QWidget):
         payload = {
             "Command": "Tools/SetNoiseStatus",
             "NoiseStatus": status  # 1 = start, 0 = stop
+        }
+        try:
+            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+        except Exception:
+            pass
+
+   
+        ip = self.cfg.get_device_ip()
+        if not ip:
+            return
+        text = self.text_input.text().strip()
+        if not text:
+            return
+
+        pos_map = {"Top": 0, "Center": 32, "Bottom": 64}
+        y = pos_map.get(self.pos_combo.currentText(), 0)
+        dir_val = 0 if self.dir_combo.currentText() == "Left" else 1
+        font_val = self.font_spin.value()
+        speed_val = self.speed_spin.value()
+        color_val = self.color_input.text().strip() or "#FFFF00"
+        align_map = {"Left": 1, "Center": 2, "Right": 3}
+        align_val = align_map.get(self.align_combo.currentText(), 2)
+        screen_val = self.screen_spin.value() - 1  # 0-based
+
+        print("Sending to screen index:", screen_val)  # Debug print
+
+        payload = {
+            "Command": "Draw/SendHttpText",
+            "LcdIndex": screen_val,
+            "TextId": 4,
+            "x": 32,
+            "y": y,
+            "dir": dir_val,
+            "font": font_val,
+            "TextWidth": 64,
+            "speed": speed_val,
+            "TextString": text,
+            "color": color_val,
+            "align": align_val
         }
         try:
             requests.post(f"http://{ip}/post", json=payload, timeout=8)
