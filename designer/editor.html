@@ -263,6 +263,8 @@
     var pyObj = null;
     new QWebChannel(qt.webChannelTransport, function(channel) {
       pyObj = channel.objects.pyObj;
+      // Now it's safe to use pyObj:
+      pyObj.set_tool('select');
     });
 
     function sendSelectionType() {
@@ -280,8 +282,6 @@
     canvas.on('selection:updated', sendSelectionType);
     canvas.on('selection:cleared', sendSelectionType);
 
-    // Set the initial tool to select
-    pyObj.set_tool('select');
 
     document.getElementById('c').addEventListener('mousedown', function() {
       this.focus();
