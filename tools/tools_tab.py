@@ -189,7 +189,7 @@ class ToolsTab(QWidget):
 
         noise_layout.addLayout(btn_lay)
 
-        # Add all tool group boxes to the API Tools vertical layout
+         # Add all tool group boxes to the API Tools vertical layout
         api_tools_layout.addWidget(scoreboard_group)
         api_tools_layout.addWidget(timer_group)
         api_tools_layout.addWidget(stopwatch_group)
