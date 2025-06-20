@@ -1,0 +1,16 @@
+[project]
+name = "divoom-gaming-gate"
+version = "0.1.0"
+description = "A PyQt5-based character and screen manager for Divoom gaming devices."
+authors = [{ name = "Your Name", email = "your@email.com" }]
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "PyQt5",
+    "Pillow",
+    "requests"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

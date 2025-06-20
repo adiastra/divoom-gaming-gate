@@ -126,11 +126,32 @@ def compose_character_image(background_path, portrait_path, name, stats):
             if modifier:
                 mod_color = (200, 200, 200)
                 mod_str = modifier.strip()
-                if mod_str.startswith('+'):
-                    mod_color = (0, 200, 0)
-                elif mod_str.startswith('-'):
-                    mod_color = (220, 0, 0)
-                draw.text((x_offset, y), f" ({modifier})", fill=mod_color, font=font)
+                # Try to interpret as a number
+                try:
+                    mod_val = int(mod_str)
+                except ValueError:
+                    try:
+                        mod_val = float(mod_str)
+                    except ValueError:
+                        mod_val = None
+
+                if mod_val is not None:
+                    if mod_val > 0:
+                        mod_color = (0, 200, 0)
+                        mod_str = f"+{mod_val}"  # Always show plus for positive
+                    elif mod_val < 0:
+                        mod_color = (220, 0, 0)
+                        mod_str = f"{mod_val}"
+                    else:
+                        mod_color = (200, 200, 200)
+                        mod_str = f"{mod_val}"
+                else:
+                    # Not a number, fallback to string and color by prefix
+                    if mod_str.startswith('+'):
+                        mod_color = (0, 200, 0)
+                    elif mod_str.startswith('-'):
+                        mod_color = (220, 0, 0)
+                draw.text((x_offset, y), f" ({mod_str})", fill=mod_color, font=font)
     return bg
 
 class PresetSignalEmitter(QObject):
