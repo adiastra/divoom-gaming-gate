@@ -9,7 +9,7 @@ It is written in Python and utilizes the PyQt5, Pillow, and requests libraries.
 
 ## How to install and run
 
-You can install the application using pip/pipx/pip3 or any other python manager that communicates to PyPi. 
+You can install the application using pip/pipx/pip3 or any other python manager that communicates to PyPi. It will take osme time to launch on first launch (pycache is bein generated), but after that it will launch normally. 
 
 ```
 pip install divoom-gaming-gate
