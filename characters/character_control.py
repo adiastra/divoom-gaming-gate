@@ -246,56 +246,62 @@ class CharacterControl(QWidget):
                 value = {"base": value}
                 self.char["stats"][stat] = value
             h = QHBoxLayout()
-            h.setSpacing(2)  # Tighter spacing between ± and X
-            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(0)  # No space between widgets in the row
+            h.setContentsMargins(0, 0, 0, 0)  # No margins around the row
+
             name_edit = QLineEdit(stat)
-            name_edit.setMinimumWidth(80)
-            name_edit.setMaximumWidth(120)
-            name_edit.setFixedHeight(22)
-            name_edit.setStyleSheet("padding:0px; margin:0px; border-radius:0px;")
+            name_edit.setMinimumWidth(20)
+            name_edit.setMaximumWidth(60)
+
             base_edit = QLineEdit(str(value.get("base", value.get("current", value.get("total", "")))))
-            base_edit.setFixedWidth(32)
-            base_edit.setMinimumHeight(22)
-            base_edit.setStyleSheet("padding:0px; margin:0px; border-radius:0px;")
+            base_edit.setFixedWidth(28)
+
             current_edit = QLineEdit(str(value.get("current", "")))
-            current_edit.setFixedWidth(32)
-            current_edit.setMinimumHeight(22)
-            current_edit.setStyleSheet("padding:0px; margin:0px; border-radius:0px;")
+            current_edit.setFixedWidth(28)
+
             slash_label = QLabel("/")
             slash_label.setFixedWidth(10)
             slash_label.setAlignment(Qt.AlignCenter)
+
             mod_btn = QPushButton("±")
-            mod_btn.setFixedWidth(20)
-            mod_btn.setStyleSheet("color: #888; background: none; border: none; margin:0px; padding:0px;")
-            modifier_edit = QLineEdit(str(value.get("modifier", "")))
-            modifier_edit.setFixedWidth(28)  # a bit narrower
-            modifier_edit.setMinimumHeight(22)
-            modifier_edit.setStyleSheet("padding:0px; margin:0px; border-radius:0px;")
+            mod_btn.setFixedWidth(28)
+            mod_btn.setFixedHeight(20)
+            mod_btn.setStyleSheet("color: #0f0;")  # Removed margin and padding
+            mod_btn.setFlat(False)
+
+            modifier_edit = QLineEdit(str
+            (value.get("modifier", "")))
+            modifier_edit.setFixedWidth(28)
             modifier_edit.setVisible(bool(value.get("modifier", "")))
+
             def toggle_modifier_field(edit=modifier_edit):
                 edit.setVisible(not edit.isVisible())
             mod_btn.clicked.connect(partial(toggle_modifier_field, modifier_edit))
+
             remove_btn = QPushButton("X")
-            remove_btn.setFixedWidth(20)
-            remove_btn.setMinimumHeight(22)
-            remove_btn.setStyleSheet("color: #c00; background: none; border: none; margin:0px; padding:0px;")
+            remove_btn.setFixedWidth(24)
+            remove_btn.setFixedHeight(20)
+            remove_btn.setFlat(False)
+            remove_btn.setStyleSheet("color: #c00;")
             remove_btn.clicked.connect(lambda _, s=stat: self.remove_stat(s))
+
             name_edit.textChanged.connect(lambda new_name, old=stat: self.rename_stat(old, new_name))
             base_edit.textChanged.connect(self.update_preview)
             current_edit.textChanged.connect(self.update_preview)
             modifier_edit.textChanged.connect(self.update_preview)
+
             h.addWidget(name_edit)
             h.addWidget(base_edit)
             h.addWidget(slash_label)
             h.addWidget(current_edit)
             h.addWidget(modifier_edit)
-            h.addStretch()
             h.addWidget(mod_btn)
             h.addWidget(remove_btn)
 
             row_widget = QWidget()
             row_widget.setLayout(h)
             row_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            row_widget.setContentsMargins(0, 0, 0, 0)  # No margins for the row widget
             self.stat_layout.addWidget(row_widget)
             self.stat_boxes[stat] = (name_edit, base_edit, current_edit, modifier_edit)
         self.update_preview()
@@ -327,7 +333,7 @@ class CharacterControl(QWidget):
         for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
             base = base_edit.text()
             current = current_edit.text()
-            modifier = modifier_edit.text() if modifier_edit.isVisible() else ""
+            modifier = modifier_edit.text()  # Always get the value, even if hidden
             stat_dict = {}
             try:
                 stat_dict["base"] = int(base)
@@ -376,7 +382,7 @@ class CharacterControl(QWidget):
         for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
             base = base_edit.text()
             current = current_edit.text()
-            modifier = modifier_edit.text() if modifier_edit.isVisible() else ""
+            modifier = modifier_edit.text()  # Always get the value, even if hidden
             stat_dict = {}
             try:
                 stat_dict["base"] = int(base)
@@ -412,7 +418,7 @@ class CharacterControl(QWidget):
                 current = int(current_edit.text())
             except ValueError:
                 current = current_edit.text()
-            modifier = modifier_edit.text() if modifier_edit.isVisible() else ""
+            modifier = modifier_edit.text()  # Always get the value, even if hidden
             stat_dict = {"base": base}
             if current:
                 stat_dict["current"] = current
