@@ -19,5 +19,5 @@ build-backend = "setuptools.build_meta"
 include = ["screens", "settings", "designer", "characters"]
 
 [project.scripts]
-divoom-gaming-gate = "main"
+divoom-gaming-gate = "main:main"
 

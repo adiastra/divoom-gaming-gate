@@ -7,7 +7,7 @@ from screens.screens_tab import ScreensTab
 from characters.characters_tab import CharactersTab
 from tools.tools_tab import ToolsTab
 from designer.designer_tab import DesignerTab
-from settings.settings_tab import SettingsTab  # new line
+from settings.settings_tab import SettingsTab
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -22,7 +22,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(settings_tab, "Settings")  
         self.setCentralWidget(tabs)
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Gaming Gate")         
     app.setWindowIcon(QIcon("GamingGate.ico")) 
@@ -30,3 +30,6 @@ if __name__ == "__main__":
     w.resize(1000, 700)
     w.show()
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
