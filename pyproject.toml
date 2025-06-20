@@ -1,6 +1,6 @@
 [project]
 name = "divoom-gaming-gate"
-version = "0.1.2"
+version = "0.1.3"
 description = "A PyQt5-based character and screen manager for Divoom gaming devices."
 authors = [{ name = "Your Name", email = "your@email.com" }]
 readme = "README.md"
@@ -19,5 +19,5 @@ build-backend = "setuptools.build_meta"
 include = ["screens", "settings", "designer", "characters"]
 
 [project.scripts]
-divoom-gaming-gate = "main:main"
+divoom-gaming-gate = "app.main:main"
 

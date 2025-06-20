@@ -3,11 +3,11 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 from PyQt5.QtGui import QIcon
-from screens.screens_tab import ScreensTab
-from characters.characters_tab import CharactersTab
-from tools.tools_tab import ToolsTab
-from designer.designer_tab import DesignerTab
-from settings.settings_tab import SettingsTab
+from .screens.screens_tab import ScreensTab
+from .characters.characters_tab import CharactersTab
+from .tools.tools_tab import ToolsTab
+from .designer.designer_tab import DesignerTab
+from .settings.settings_tab import SettingsTab
 
 class MainWindow(QMainWindow):
     def __init__(self):
