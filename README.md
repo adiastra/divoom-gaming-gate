@@ -22,6 +22,13 @@ or
 ```
 pip3 install divoom-gaming-gate
 ```
+
+You may have to ask it to install dependencies like this 
+
+```
+pipx install divoom-gaming-gate --include-deps
+```
+
 Then just run it from the command line
 ```
 divoom-gaming-gate
