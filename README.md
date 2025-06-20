@@ -9,7 +9,7 @@ It is written in Python and utilizes the PyQt5, Pillow, and requests libraries.
 
 ## How to install and run
 
-You can install the application using pip/pipx/pip3 or any other python manager that communicates to PyPi. 
+You can install the application using pip/pipx/pip3 or any other Python manager that communicates with PyPI. It will take some time to launch on first launch (pycache is being generated), but after that it will launch normally. 
 
 ```
 pip install divoom-gaming-gate
@@ -37,7 +37,7 @@ divoom-gaming-gate
 ![image](https://github.com/user-attachments/assets/4a188fc9-d230-45f7-ae97-af73320d0153)
 
 
-In this screen you can load any image of animated gif from either your local machine or Tenor Gif Search. You can skip frames (for sending large gifs faster) and edit the time between frames. This screen also allows you to change the aspec of the image to Stretch, Fit, or Crop the iimage for best fit. 
+In this screen, you can load any image or animated GIF from either your local machine or Tenor GIF Search. You can skip frames (for sending large GIFs faster) and edit the time between frames. This screen also allows you to change the aspect of the image to Stretch, Fit, or Crop the image for best fit. 
 
 
 -------------
@@ -45,14 +45,14 @@ In this screen you can load any image of animated gif from either your local mac
 ![image](https://github.com/user-attachments/assets/a2f51d4b-0b9f-4eb4-a898-7b9c2e3849c1)
 
 
-This screen allows you to create character images with backgrounds and character stats. You can use the default system layouts (D&D / Genesys) or roll your own which you can then save for future use. It allows every stat to be either a single number, a X/Y configureation and allows you to add modifiers (like +1 or -2) 
+This screen allows you to create character images with backgrounds and character stats. You can use the default system layouts (D&D / Genesys) or roll your own, which you can then save for future use. It allows every stat to be either a single number, an X/Y ,configuration and allows you to add modifiers (like +1 or -2) 
 
 -------------
 
 ![image](https://github.com/user-attachments/assets/4e96599e-1f42-43b7-876a-9482a0d88f88)
 
 
-This area is mostly self explanitory and utilizes some of the built in tools that are part of the Divoom API
+This area is mostly self-explanatory and utilizes some of the built-in tools that are part of the Divoom API
 
 -------------
 
