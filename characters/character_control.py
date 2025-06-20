@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QSpinBox, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QInputDialog, QComboBox, QSizePolicy
 )
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 from utils.image import compose_character_image
 import shutil
@@ -182,26 +182,32 @@ class CharacterControl(QWidget):
         # Add Stat button
         self.add_stat_btn = QPushButton("Add Stat")
         self.add_stat_btn.clicked.connect(self.add_stat)
+        self.add_stat_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Send
         self.send_btn = QPushButton("Send")
         self.send_btn.clicked.connect(self.send)
+        self.send_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Background button
         self.bg_btn = QPushButton("Load Background")
         self.bg_btn.clicked.connect(self.load_background)
+        self.bg_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Load button
         self.load_btn = QPushButton("Load Character")
         self.load_btn.clicked.connect(self.load_character_dialog)
+        self.load_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Save button
         self.save_btn = QPushButton("Save")
         self.save_btn.clicked.connect(self.save_character)
+        self.save_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Save as Preset button
         self.save_preset_btn = QPushButton("Save as Preset")
         self.save_preset_btn.clicked.connect(self.save_as_preset)
+        self.save_preset_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Main layout
         layout = QVBoxLayout()
@@ -263,11 +269,15 @@ class CharacterControl(QWidget):
             slash_label.setFixedWidth(10)
             slash_label.setAlignment(Qt.AlignCenter)
 
-            mod_btn = QPushButton("±")
-            mod_btn.setFixedWidth(28)
-            mod_btn.setFixedHeight(20)
-            mod_btn.setStyleSheet("color: #0f0;")  # Removed margin and padding
+            mod_btn = QPushButton("±")            
+            mod_btn.setFixedWidth(22)
+            #mod_btn.setFixedHeight(22)
+            mod_btn.setStyleSheet("""
+                QPushButton { color: #0f0; padding: 0px; margin: 0px; border-radius: 0px; }
+                QPushButton:hover { background: #222; }
+            """)
             mod_btn.setFlat(False)
+            mod_btn.setFont(QFont("Arial", 16))
 
             modifier_edit = QLineEdit(str
             (value.get("modifier", "")))
@@ -279,10 +289,12 @@ class CharacterControl(QWidget):
             mod_btn.clicked.connect(partial(toggle_modifier_field, modifier_edit))
 
             remove_btn = QPushButton("X")
-            remove_btn.setFixedWidth(24)
-            remove_btn.setFixedHeight(20)
+            remove_btn.setFixedWidth(22)
             remove_btn.setFlat(False)
-            remove_btn.setStyleSheet("color: #c00;")
+            remove_btn.setStyleSheet("""
+                QPushButton { color: #c00; padding: 0px; margin: 0px; border-radius: 0px; }
+                QPushButton:hover { background: #222; }
+            """)
             remove_btn.clicked.connect(lambda _, s=stat: self.remove_stat(s))
 
             name_edit.textChanged.connect(lambda new_name, old=stat: self.rename_stat(old, new_name))
@@ -307,7 +319,7 @@ class CharacterControl(QWidget):
         self.update_preview()
 
     def add_stat(self):
-        stat, ok = QInputDialog.getText(self, "Add Stat", "Stat abbreviation (e.g. STR, DEX):")
+        stat, ok = QInputDialog.getText(self, "Add Stat", "Stat abbreviation(e.g. STR, DEX)")
         stat = stat.strip().upper()
         if ok and stat and stat not in self.char["stats"]:
             self.char["stats"][stat] = {"current": 0, "total": 0}

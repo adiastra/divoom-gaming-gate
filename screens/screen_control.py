@@ -57,6 +57,10 @@ class ScreenControl(QWidget):
         self.send_btn = QPushButton("Send")
         self.gif_browser_btn = QPushButton("Tenor")
 
+        self.load_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+        self.send_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+        self.gif_browser_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+
         self.speed_box = QSpinBox()
         self.speed_box.setRange(10, 2000)
         self.speed_box.setValue(self.speed)

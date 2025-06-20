@@ -15,7 +15,7 @@ SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
 class SettingsTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        self.setStyleSheet("background:#2b2b2b;")
         self.ip_edit = QLineEdit()
 
         # Main layout for the tab
@@ -25,11 +25,13 @@ class SettingsTab(QWidget):
 
         # Group box for settings
         group = QGroupBox("Device Settings")
+        group.setMaximumWidth(400)  # Adjust width as needed
         group.setStyleSheet(
-            "QGroupBox { color: white; font-size: 16px; border: 1.5px inset #666; border-radius: 8px; margin-top: 8px; background: #232323; }"
+            "QGroupBox { color: white; font-size: 14px; border: 1px inset #666; border-radius: 6px; margin-top: 8px; }"
             "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }"
         )
-        group.setMaximumWidth(400)  # Adjust width as needed
+        for layout_widget in group.findChildren(QLabel):
+            layout_widget.setStyleSheet("color:white")
 
         layout = QVBoxLayout(group)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -104,6 +106,11 @@ class SettingsTab(QWidget):
         sync_btn.clicked.connect(self.sync_system_time)
         time_layout.addWidget(sync_btn)
 
+        # After creating each button, add this line to give a hover highlight:
+        sync_btn.setStyleSheet("""
+            QPushButton:hover { background: #222; }
+        """)
+
         layout.addLayout(time_layout)
 
         # 12/24 hour mode
@@ -118,6 +125,12 @@ class SettingsTab(QWidget):
         save_btn = QPushButton("Save Settings")
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
+
+        # After creating each button, add this line to give a hover highlight:
+        save_btn.setStyleSheet("""
+            QPushButton:hover { background: #222; }
+        """)
+
         layout.addStretch()
 
         main_layout.addWidget(group)

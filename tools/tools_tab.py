@@ -90,8 +90,11 @@ class ToolsTab(QWidget):
         timer_layout.addLayout(time_lay)
 
         # Start button
-        start_btn = QToolButton(text="Start Countdown", autoRaise=True)
-        start_btn.setStyleSheet("color:white;font-size:14px")
+        start_btn = QToolButton(text="Start Countdown")
+        start_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         start_btn.clicked.connect(self.send_countdown)
         timer_layout.addWidget(start_btn, alignment=Qt.AlignRight)
 
@@ -106,18 +109,27 @@ class ToolsTab(QWidget):
         stopwatch_layout.setSpacing(8)
 
         btn_lay = QHBoxLayout()
-        start_btn = QToolButton(text="Start", autoRaise=True)
-        start_btn.setStyleSheet("color:white;font-size:14px")
+        start_btn = QToolButton(text="Start")
+        start_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         start_btn.clicked.connect(lambda: self.send_stopwatch(1))
         btn_lay.addWidget(start_btn)
 
-        stop_btn = QToolButton(text="Stop", autoRaise=True)
-        stop_btn.setStyleSheet("color:white;font-size:14px")
+        stop_btn = QToolButton(text="Stop")
+        stop_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         stop_btn.clicked.connect(lambda: self.send_stopwatch(0))
         btn_lay.addWidget(stop_btn)
 
-        reset_btn = QToolButton(text="Reset", autoRaise=True)
-        reset_btn.setStyleSheet("color:white;font-size:14px")
+        reset_btn = QToolButton(text="Reset")
+        reset_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         reset_btn.clicked.connect(lambda: self.send_stopwatch(2))
         btn_lay.addWidget(reset_btn)
 
@@ -161,8 +173,11 @@ class ToolsTab(QWidget):
         buzzer_layout.addLayout(total_lay)
 
         # Play button
-        play_btn = QToolButton(text="Play Buzzer", autoRaise=True)
-        play_btn.setStyleSheet("color:white;font-size:14px")
+        play_btn = QToolButton(text="Play Buzzer")
+        play_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         play_btn.clicked.connect(self.send_buzzer)
         buzzer_layout.addWidget(play_btn, alignment=Qt.AlignRight)
 
@@ -177,13 +192,19 @@ class ToolsTab(QWidget):
         noise_layout.setSpacing(8)
 
         btn_lay = QHBoxLayout()
-        start_btn = QToolButton(text="Start", autoRaise=True)
-        start_btn.setStyleSheet("color:white;font-size:14px")
+        start_btn = QToolButton(text="Start")
+        start_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         start_btn.clicked.connect(lambda: self.send_noise(1))
         btn_lay.addWidget(start_btn)
 
-        stop_btn = QToolButton(text="Stop", autoRaise=True)
-        stop_btn.setStyleSheet("color:white;font-size:14px")
+        stop_btn = QToolButton(text="Stop")
+        stop_btn.setStyleSheet("""
+            QToolButton { color: white; font-size: 14px; }
+            QToolButton:hover { background: #222; }
+        """)
         stop_btn.clicked.connect(lambda: self.send_noise(0))
         btn_lay.addWidget(stop_btn)
 

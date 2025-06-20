@@ -14,8 +14,8 @@ class CharactersTab(QWidget):
 
         for i in range(5):
             box = QGroupBox(f"Character {i+1}")
-            box.setMinimumWidth(280)
-            box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
+            box.setMinimumWidth(260)
+            box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 
             ctrl = CharacterControl(i)
             v = QVBoxLayout()
