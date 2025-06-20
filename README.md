@@ -1,8 +1,32 @@
+# Divoom Gaming Gate
+
+## What is it?
+
 This is a work in progress designed to allow users to push images to the [ Divoom Times Gate](https://divoom.com/products/time-gate)
 
 It is written in Python and utilizes the PyQt5, Pillow, and requests libraries. 
 
 
+## How to install and run
+
+You can install the application using pip/pipx/pip3 or any other python manager that communicates to PyPi. 
+
+```
+pip install divoom-gaming-gate
+```
+or
+```
+pipx install divoom-gaming-gate
+```
+or
+```
+pip3 install divoom-gaming-gate
+```
+Then just run it from the command line
+```
+divoom-gaming-gate
+```
+## Screenshots and description
 ![image](https://github.com/user-attachments/assets/4a188fc9-d230-45f7-ae97-af73320d0153)
 
 
