@@ -3,6 +3,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 from PyQt5.QtGui import QIcon
+import importlib.resources
 from .screens.screens_tab import ScreensTab
 from .characters.characters_tab import CharactersTab
 from .tools.tools_tab import ToolsTab
@@ -25,7 +26,9 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Gaming Gate")         
-    app.setWindowIcon(QIcon("GamingGate.ico")) 
+    # Use importlib.resources to get the icon path
+    with importlib.resources.path("app", "GamingGate.ico") as icon_path:
+        app.setWindowIcon(QIcon(str(icon_path)))
     w = MainWindow()
     w.resize(1000, 700)
     w.show()
