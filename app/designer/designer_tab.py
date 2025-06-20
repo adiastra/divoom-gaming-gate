@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
 from ..utils.config import Config
+import importlib.resources
 
 # constants that match the rest of your code-base
 IMG_SIZE      = 128
@@ -96,7 +97,8 @@ class DesignerTab(QWidget):
         self.channel = QWebChannel()
         self.channel.registerObject('pyObj', self)
         self.view.page().setWebChannel(self.channel)
-        self.view.load(QUrl.fromLocalFile(os.path.abspath(html)))
+        with importlib.resources.path("app.designer", "editor.html") as html_path:
+            self.view.load(QUrl.fromLocalFile(str(html_path)))
         canvas_col.addWidget(self.view, alignment=Qt.AlignLeft | Qt.AlignTop)
 
         # --- Frame controls (directly under canvas, all in one row) ---
