@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
-from utils.config import Config
+from ..utils.config import Config
 
 # constants that match the rest of your code-base
 IMG_SIZE      = 128

@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QLabel, QHBoxLayout, QLineEdit, QSpinBox, QToolButton, QMessageBox,
     QColorDialog, QComboBox, QFileDialog, QPushButton, QSlider, QSizePolicy
 )
-from utils.config import Config
+from ..utils.config import Config
 
 def pil_to_qimage(img):
     """Convert PIL Image to QImage (works with Pillow 10+)"""

@@ -1,4 +1,4 @@
-from utils.config import Config
+from ..utils.config import Config
 import io, base64, time, requests
 import json
 import os
@@ -9,12 +9,12 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPixmap, QImage, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
-from utils.image import compose_character_image
+from ..utils.image import compose_character_image
 import shutil
 from functools import partial
 
 # IP from config 
-from utils.config import Config
+from ..utils.config import Config
 DEVICE_IP = Config.get_device_ip()
 
 SCREEN_COUNT = 5
