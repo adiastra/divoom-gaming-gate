@@ -26,3 +26,10 @@ divoom-gaming-gate = "app.main:main"
 "app" = ["GamingGate.ico"]
 "app.designer" = ["editor.html", "*.js", "*.css"]
 
+[tool.briefcase.app.divoom_gaming_gate]
+formal_name = "Divoom Gaming Gate"
+description = "A PyQt5-based character and screen manager for Divoom Times Gate."
+icon = "app/GamingGate"
+sources = ["app"]
+entry_point = "app.main:main"
+
