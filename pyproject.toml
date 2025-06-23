@@ -18,13 +18,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["divoom_gaming_gate*"]
 
 [project.scripts]
 divoom-gaming-gate = "divoom_gaming_gate.main:main"
 
 [tool.setuptools.package-data]
-"app" = ["GamingGate.ico"]
+"divoom_gaming_gate" = ["GamingGate.ico"]
 "divoom_gaming_gate.designer" = ["editor.html", "*.js", "*.css"]
 
 [tool.briefcase]
