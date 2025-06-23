@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget
 from PyQt5.QtGui import QIcon
 import importlib.resources
 from .screens.screens_tab import ScreensTab
+from .themes.themes_tab import ThemesTab
 from .characters.characters_tab import CharactersTab
 from .tools.tools_tab import ToolsTab
 from .designer.designer_tab import DesignerTab
@@ -16,6 +17,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Divoom Gaming Gate")
         tabs = QTabWidget()
         tabs.addTab(ScreensTab(),    "Screens")
+        tabs.addTab(ThemesTab(),     "Themes")
         tabs.addTab(CharactersTab(), "Characters")
         tabs.addTab(ToolsTab(), "Tools")
         settings_tab = SettingsTab()

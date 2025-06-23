@@ -78,7 +78,7 @@ class DesignerTab(QWidget):
         tbtn('T', "Add text", lambda: self.set_tool('text'), ref='text')
         tbtn('🖌️', "Freehand draw", lambda: self.set_tool('draw'), ref='draw')
         tbtn('❌', "Delete selected object", lambda: self._js("EditorAPI.deleteObject();"))
-        #tbtn('📤', "Send to screen", self._send)
+        
         tlay.addStretch()
         root.addWidget(top)
 

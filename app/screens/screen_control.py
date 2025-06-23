@@ -107,6 +107,11 @@ class ScreenControl(QWidget):
         self.send_btn.clicked.connect(self.send_to_screen)
         self.gif_browser_btn.clicked.connect(self.open_gif_browser)
 
+        # Search state
+        self.current_query = ""
+        self.current_pos = None
+        self.prev_stack = []
+
     def _labeled_row(self, text, widget):
         row = QHBoxLayout()
         row.addWidget(QLabel(text))
@@ -243,6 +248,39 @@ class ScreenControl(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load GIF from Tenor:\n{e}")
 
+    def clear_image(self):
+        self.raw_frames = []
+        self.frames = []
+        self.preview_idx = 0
+        self.label.setText("No image loaded")
+        self.preview.clear()  # <-- This line clears the preview area
+
+    def load_from_theme_data(self, screen_data):
+        import base64, io
+        from PIL import Image, ImageSequence
+        img_type = screen_data["type"]
+        img_data = base64.b64decode(screen_data["data"])
+        if img_type == "gif":
+            img = Image.open(io.BytesIO(img_data))
+            self.raw_frames = [fr.convert("RGB") for fr in ImageSequence.Iterator(img)]
+        else:
+            img = Image.open(io.BytesIO(img_data)).convert("RGB")
+            self.raw_frames = [img]
+        self.apply_mode()
+        self._start_animation()
+
+from PyQt5.QtCore import QObject, pyqtSlot
+
+class GifBridge(QObject):
+    def __init__(self, dialog):
+        super().__init__()
+        self.dialog = dialog
+
+    @pyqtSlot(str)
+    def gifSelected(self, url):
+        self.dialog.selected_url = url
+        self.dialog.accept()
+
 class GifBrowserDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -255,7 +293,7 @@ class GifBrowserDialog(QDialog):
         search_row = QHBoxLayout()
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search Tenor...")
-        self.search_edit.returnPressed.connect(self.do_search)  # Enable Enter key
+        self.search_edit.returnPressed.connect(self.do_search)
         search_btn = QPushButton("Search")
         search_btn.clicked.connect(self.do_search)
         search_row.addWidget(self.search_edit)
@@ -264,6 +302,20 @@ class GifBrowserDialog(QDialog):
 
         self.results = QWebEngineView()
         layout.addWidget(self.results)
+
+        # --- Add navigation buttons here ---
+        nav_row = QHBoxLayout()
+        self.prev_btn = QPushButton("Previous")
+        self.prev_btn.clicked.connect(self.load_previous_page)
+        self.prev_btn.setEnabled(False)
+        nav_row.addWidget(self.prev_btn)
+
+        self.next_btn = QPushButton("Next")
+        self.next_btn.clicked.connect(self.load_next_page)
+        self.next_btn.setEnabled(False)
+        nav_row.addWidget(self.next_btn)
+        layout.addLayout(nav_row)
+        # --- End navigation buttons ---
 
         # Set initial dark background
         initial_html = """
@@ -293,15 +345,24 @@ class GifBrowserDialog(QDialog):
         self.search_timer.timeout.connect(self.do_search)
         self.search_edit.textChanged.connect(self._on_search_text_changed)
 
-    def _on_search_text_changed(self, text):
-        self.search_timer.start(400)  # 400 ms delay after last keypress
+        # Paging state
+        self.current_query = ""
+        self.current_pos = None
+        self.prev_stack = []
 
-    def do_search(self):
+    def _on_search_text_changed(self, text):
+        self.prev_stack = []
+        self.current_pos = None
+        self.search_timer.start(400)
+
+    def do_search(self, pos=None):
         api_key = "AIzaSyDW9J05UI8jOQsz-fqxs1yM6uUK0MkJ5tY"
         q = self.search_edit.text().strip()
         if not q:
             return
         url = f"https://tenor.googleapis.com/v2/search?q={q}&key={api_key}&limit=20&media_filter=gif"
+        if pos:
+            url += f"&pos={pos}"
         try:
             resp = requests.get(url, timeout=8)
             resp.raise_for_status()
@@ -334,6 +395,14 @@ class GifBrowserDialog(QDialog):
                     html += "</tr><tr>"
             html += "</tr></table></body></html>"
             self.results.setHtml(html)
+
+            # Handle paging
+            self.current_query = q
+            if pos and pos not in self.prev_stack:
+                self.prev_stack.append(pos)
+            self.current_pos = data.get("next", None)
+            self.next_btn.setEnabled(self.current_pos is not None)
+            self.prev_btn.setEnabled(len(self.prev_stack) > 1)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to search Tenor:\n{e}")
 
@@ -341,12 +410,13 @@ class GifBrowserDialog(QDialog):
         # This method is not used with QWebEngineView, but keep for compatibility
         pass
 
-class GifBridge(QObject):
-    def __init__(self, dialog):
-        super().__init__()
-        self.dialog = dialog
+    def load_next_page(self):
+        if self.current_pos:
+            self.do_search(self.current_pos)
 
-    @pyqtSlot(str)
-    def gifSelected(self, url):
-        self.dialog.selected_url = url
-        self.dialog.accept()
+    def load_previous_page(self):
+        if len(self.prev_stack) > 1:
+            # Remove current pos
+            self.prev_stack.pop()
+            prev_pos = self.prev_stack[-1]
+            self.do_search(prev_pos)
