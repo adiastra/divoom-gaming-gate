@@ -24,7 +24,7 @@ jobs:
         run: |
           briefcase create macOS
           briefcase build macOS
-          briefcase package macOS
+          briefcase package macOS --adhoc-sign
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
