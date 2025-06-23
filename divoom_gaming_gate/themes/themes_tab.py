@@ -193,7 +193,7 @@ class ThemesTab(QWidget):
         self.themes_grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
     def send_theme(self, theme):
-        from app.utils.config import Config
+        from divoom_gaming_gate.utils.config import Config
         import requests, io, base64, time
         from PIL import Image, ImageSequence
 

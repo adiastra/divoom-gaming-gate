@@ -97,7 +97,7 @@ class DesignerTab(QWidget):
         self.channel = QWebChannel()
         self.channel.registerObject('pyObj', self)
         self.view.page().setWebChannel(self.channel)
-        with importlib.resources.path("app.designer", "editor.html") as html_path:
+        with importlib.resources.path("divoom_gaming_gate.designer", "editor.html") as html_path:
             self.view.load(QUrl.fromLocalFile(str(html_path)))
         canvas_col.addWidget(self.view, alignment=Qt.AlignLeft | Qt.AlignTop)
 

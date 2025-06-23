@@ -26,15 +26,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(tabs)
 
 def main():
-    app = QApplication(sys.argv)
-    app.setApplicationName("Gaming Gate")         
+    divoom_gaming_gate = QApplication(sys.argv)
+    divoom_gaming_gate.setApplicationName("Gaming Gate")         
     # Use importlib.resources to get the icon path
-    with importlib.resources.path("app", "GamingGate.ico") as icon_path:
-        app.setWindowIcon(QIcon(str(icon_path)))
+    with importlib.resources.path("divoom_gaming_gate", "GamingGate.ico") as icon_path:
+        divoom_gaming_gate.setWindowIcon(QIcon(str(icon_path)))
     w = MainWindow()
     w.resize(1000, 700)
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(divoom_gaming_gate.exec_())
 
 if __name__ == "__main__":
     main()

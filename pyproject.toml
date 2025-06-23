@@ -21,11 +21,11 @@ build-backend = "setuptools.build_meta"
 include = ["app*"]
 
 [project.scripts]
-divoom-gaming-gate = "app.main:main"
+divoom-gaming-gate = "divoom_gaming_gate.main:main"
 
 [tool.setuptools.package-data]
 "app" = ["GamingGate.ico"]
-"app.designer" = ["editor.html", "*.js", "*.css"]
+"divoom_gaming_gate.designer" = ["editor.html", "*.js", "*.css"]
 
 [tool.briefcase]
 project_name = "Divoom Gaming Gate"
@@ -34,7 +34,8 @@ bundle = "org.diastra.divoomgaminggate"
 [tool.briefcase.app.divoom_gaming_gate]
 formal_name = "Divoom Gaming Gate"
 description = "A PyQt5-based character and screen manager for Divoom Times Gate."
-icon = "app/GamingGate"
-sources = ["app"]
-entry_point = "app.main:main"
+icon = "divoom_gaming_gate/GamingGate"
+sources = ["divoom_gaming_gate"]
+entry_point = "divoom_gaming_gate.main:main"
+license = "GPL-3.0-or-later"
 
