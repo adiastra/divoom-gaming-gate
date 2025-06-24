@@ -9,7 +9,7 @@ dependencies = [
     "PyQt5",
     "PyQtWebEngine",
     "Pillow",
-    "requests"
+    "requests",
     "toml"
 ]
 license = "GPL-3.0-or-later"
