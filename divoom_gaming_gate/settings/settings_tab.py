@@ -92,7 +92,7 @@ class SettingsTab(QWidget):
         tz_layout.addWidget(self.tz_combo)
 
         # DST checkbox
-        self.dst_checkbox = QCheckBox("Daylight Saving Time")
+        self.dst_checkbox = QCheckBox("DST")
         self.dst_checkbox.stateChanged.connect(self.set_timezone)
         tz_layout.addWidget(self.dst_checkbox)
 

@@ -33,11 +33,6 @@ class AnimatedLabel(QLabel):
             self.movie = None
             self._tmpfile = None
 
-    def enterEvent(self, event):
-        if hasattr(self, "movie") and self.movie:
-            self.movie.start()
-        super().enterEvent(event)
-
     def leaveEvent(self, event):
         if hasattr(self, "movie") and self.movie:
             self.movie.stop()
@@ -189,7 +184,13 @@ class ThemesTab(QWidget):
             theme_vbox.addLayout(previews_row)
 
             theme_frame.setFixedWidth(400)
-            self.themes_grid.addWidget(theme_frame, row, col, alignment=Qt.AlignTop | Qt.AlignHCenter)
+
+            # --- Wrap the theme_frame in a ThemeWidget ---
+            theme_widget = ThemeWidget(theme, preview_labels)
+            theme_widget.setLayout(theme_vbox)
+            theme_widget.setFixedWidth(400)
+            self.themes_grid.addWidget(theme_widget, row, col, alignment=Qt.AlignTop | Qt.AlignHCenter)
+
         self.themes_grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
     def send_theme(self, theme):
