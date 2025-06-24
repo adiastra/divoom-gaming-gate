@@ -26,8 +26,9 @@ jobs:
           briefcase build windows
           briefcase package windows
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-app
-          path: dist/*.msi
+          files: dist/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
