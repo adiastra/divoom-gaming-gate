@@ -1,10 +1,10 @@
 [project]
 name = "divoom-gaming-gate"
-version = "0.2.3"
+version = "v0.2.4"
 description = "A PyQt5-based character and screen manager for Divoom gaming devices."
 authors = [{ name = "Your Name", email = "your@email.com" }]
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.7" 
 dependencies = [
     "PyQt5",
     "PyQtWebEngine",

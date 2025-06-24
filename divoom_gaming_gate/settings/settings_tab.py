@@ -9,6 +9,7 @@ from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtWidgets import QSlider
 import requests
 import datetime
+import toml
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
 
@@ -135,6 +136,17 @@ class SettingsTab(QWidget):
 
         main_layout.addWidget(group)
 
+        # Version display and update button
+        version_layout = QHBoxLayout()
+        self.version_label = QLabel(f"Version: {self.get_current_version()}")
+        self.version_label.setStyleSheet("color: #aaa;")
+        version_layout.addWidget(self.version_label)
+        update_btn = QPushButton("Check for Updates")
+        update_btn.clicked.connect(self.check_for_update)
+        update_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+        version_layout.addWidget(update_btn)
+        layout.addLayout(version_layout)
+
         # Now that all widgets exist, load settings
         self.load_settings()
 
@@ -243,3 +255,59 @@ class SettingsTab(QWidget):
             requests.post(f"http://{ip}/post", json=payload, timeout=4)
         except Exception:
             pass  # Silently ignore errors for now
+
+    def get_current_version(self):
+        pyproject = os.path.join(os.path.dirname(__file__), "../../pyproject.toml")
+        try:
+            data = toml.load(pyproject)
+            return data["project"]["version"]
+        except Exception:
+            return "unknown"
+
+    def check_for_update(self):
+        import sys, tempfile
+        GITHUB_REPO = "adiastra/divoom-gaming-gate"
+        CURRENT_VERSION = self.get_current_version()
+        try:
+            resp = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest", timeout=10)
+            resp.raise_for_status()
+            release = resp.json()
+            latest_version = release["tag_name"].lstrip("v")
+            if latest_version > CURRENT_VERSION:
+                # Find asset for this OS
+                if sys.platform == "darwin":
+                    ext = ".dmg"
+                elif sys.platform == "win32":
+                    ext = ".msi"
+                else:
+                    ext = None
+                asset_url = None
+                for asset in release["assets"]:
+                    if ext and asset["name"].endswith(ext):
+                        asset_url = asset["browser_download_url"]
+                        break
+                if asset_url:
+                    reply = QMessageBox.question(self, "Update Available",
+                        f"Version {latest_version} is available. Download and install?",
+                        QMessageBox.Yes | QMessageBox.No)
+                    if reply == QMessageBox.Yes:
+                        # Download to temp dir
+                        local_path = os.path.join(tempfile.gettempdir(), asset_url.split("/")[-1])
+                        with requests.get(asset_url, stream=True) as r:
+                            r.raise_for_status()
+                            with open(local_path, "wb") as f:
+                                for chunk in r.iter_content(chunk_size=8192):
+                                    f.write(chunk)
+                        # Open installer
+                        if sys.platform == "darwin":
+                            os.system(f"open '{local_path}'")
+                        elif sys.platform == "win32":
+                            os.startfile(local_path)
+                        else:
+                            QMessageBox.information(self, "Update", f"Downloaded to {local_path}")
+                else:
+                    QMessageBox.information(self, "Update", "No suitable installer found for your OS.")
+            else:
+                QMessageBox.information(self, "Update", "You are up to date.")
+        except Exception as e:
+            QMessageBox.warning(self, "Update Error", f"Could not check for updates:\n{e}")
