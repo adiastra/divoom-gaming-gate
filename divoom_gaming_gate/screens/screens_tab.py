@@ -7,8 +7,7 @@ import base64
 import io
 from PIL import Image
 
-THEMES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "themes"))
-os.makedirs(THEMES_DIR, exist_ok=True)
+from divoom_gaming_gate.utils.paths import THEMES_DIR
 
 def save_theme_file(theme_name, screen_controls, parent=None):
     theme_path = os.path.join(THEMES_DIR, f"{theme_name}.theme")

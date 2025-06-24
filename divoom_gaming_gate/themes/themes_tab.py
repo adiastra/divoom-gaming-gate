@@ -10,7 +10,7 @@ import io
 import time
 from PIL import Image, ImageSequence
 
-THEMES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "themes"))
+from divoom_gaming_gate.utils.paths import THEMES_DIR
 
 class AnimatedLabel(QLabel):
     """A QLabel that can show a static image or an animated GIF from bytes."""

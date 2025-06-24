@@ -20,7 +20,7 @@ DEVICE_IP = Config.get_device_ip()
 SCREEN_COUNT = 5
 IMG_SIZE     = 128
 
-CHARACTER_DIR = os.path.join(os.path.dirname(__file__), "characters")
+from divoom_gaming_gate.utils.paths import CHARACTER_DIR
 ASSIGNMENTS_FILE = os.path.join(CHARACTER_DIR, "screen_assignments.json")
 PRESETS_FILE = os.path.join(CHARACTER_DIR, "system_presets.json")
 
@@ -381,7 +381,6 @@ class CharacterControl(QWidget):
                 stat_dict["modifier"] = modifier
             stats[name_edit.text()] = stat_dict
         self.char["stats"] = stats
-        os.makedirs(CHARACTER_DIR, exist_ok=True)
         with open(get_character_path(self.char["name"]), "w") as f:
             json.dump(self.char, f, indent=2)
 
@@ -484,8 +483,6 @@ class CharacterControl(QWidget):
     def load_background(self):
         path, _ = QFileDialog.getOpenFileName(self, "Select Background Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
         if path:
-            # Copy to characters folder with a unique name
-            os.makedirs(CHARACTER_DIR, exist_ok=True)
             ext = os.path.splitext(path)[1]
             dest = os.path.join(CHARACTER_DIR, f"bg_slot_{self.slot}{ext}")
             shutil.copy2(path, dest)

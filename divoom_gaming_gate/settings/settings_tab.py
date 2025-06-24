@@ -11,7 +11,7 @@ import requests
 import datetime
 import toml
 
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
+from divoom_gaming_gate.utils.paths import SETTINGS_FILE
 
 try:
     from importlib.metadata import version, PackageNotFoundError

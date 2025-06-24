@@ -10,7 +10,8 @@ dependencies = [
     "PyQtWebEngine",
     "Pillow",
     "requests",
-    "toml"
+    "toml",
+    "appdirs"
 ]
 license = "GPL-3.0-or-later"
 
