@@ -13,6 +13,11 @@ import toml
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
 
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from importlib_metadata import version, PackageNotFoundError  # For Python <3.8
+
 class SettingsTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -257,11 +262,9 @@ class SettingsTab(QWidget):
             pass  # Silently ignore errors for now
 
     def get_current_version(self):
-        pyproject = os.path.join(os.path.dirname(__file__), "../../pyproject.toml")
         try:
-            data = toml.load(pyproject)
-            return data["project"]["version"]
-        except Exception:
+            return version("divoom-gaming-gate")
+        except PackageNotFoundError:
             return "unknown"
 
     def check_for_update(self):
