@@ -51,10 +51,13 @@ class DesignerTab(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ─── Top toolbar ──────────────────────────────────────────────────────
+        # ─── Top toolbar (two rows) ────────────────────────────────────────────────
         top = QWidget(); top.setStyleSheet("background:#3c3c3c")
-        tlay = QHBoxLayout(top); tlay.setContentsMargins(4,4,4,4); tlay.setSpacing(8)
-        def tbtn(txt_or_icon, tip, cb, ref=None):
+        top_lay = QVBoxLayout(top); top_lay.setContentsMargins(4,4,4,4); top_lay.setSpacing(2)
+
+        # First row: tools
+        row1 = QHBoxLayout(); row1.setSpacing(8)
+        def tbtn1(txt_or_icon, tip, cb, ref=None):
             b = QToolButton(toolTip=tip, autoRaise=True)
             if isinstance(txt_or_icon, QIcon):
                 b.setIcon(txt_or_icon)
@@ -62,24 +65,48 @@ class DesignerTab(QWidget):
                 b.setText(txt_or_icon)
             b.setStyleSheet("color:white;font-size:18px")
             b.clicked.connect(cb)
-            tlay.addWidget(b)
+            row1.addWidget(b)
             if ref:
                 self.tool_buttons[ref] = b
             return b
 
         self.tool_buttons = {}  # Store references to tool buttons
 
-        # Add "Select" tool first
-        tbtn('🖱️', "Select/move objects", lambda: self.set_tool('select'), ref='select')
-        tbtn('▭', "Add rectangle", lambda: self.set_tool('rect'), ref='rect')
-        tbtn('◯', "Add circle", lambda: self.set_tool('circle'), ref='circle')
-        tbtn('⬟', "Add polygon", lambda: self.set_tool('polygon'), ref='polygon')
-        tbtn('／', "Add line", lambda: self.set_tool('line'), ref='line')
-        tbtn('T', "Add text", lambda: self.set_tool('text'), ref='text')
-        tbtn('🖌️', "Freehand draw", lambda: self.set_tool('draw'), ref='draw')
-        tbtn('❌', "Delete selected object", lambda: self._js("EditorAPI.deleteObject();"))
-        
-        tlay.addStretch()
+        tbtn1('↖', "Select/move objects", lambda: self.set_tool('select'), ref='select')
+        tbtn1('▭', "Add rectangle", lambda: self.set_tool('rect'), ref='rect')
+        tbtn1('◯', "Add circle", lambda: self.set_tool('circle'), ref='circle')
+        tbtn1('⬟', "Add polygon", lambda: self.set_tool('polygon'), ref='polygon')
+        tbtn1('／', "Add line", lambda: self.set_tool('line'), ref='line')
+        tbtn1('T', "Add text", lambda: self.set_tool('text'), ref='text')
+        tbtn1('🖌️', "Freehand draw", lambda: self.set_tool('draw'), ref='draw')
+        row1.addStretch()
+
+        # Second row: actions
+        row2 = QHBoxLayout(); row2.setSpacing(8)
+        def tbtn2(txt_or_icon, tip, cb, ref=None):
+            b = QToolButton(toolTip=tip, autoRaise=True)
+            if isinstance(txt_or_icon, QIcon):
+                b.setIcon(txt_or_icon)
+            else:
+                b.setText(txt_or_icon)
+            b.setStyleSheet("color:white;font-size:18px")
+            b.clicked.connect(cb)
+            row2.addWidget(b)
+            if ref:
+                self.tool_buttons[ref] = b
+            return b
+
+        tbtn2('☒', "Delete selected object", lambda: self._js("EditorAPI.deleteObject();"))
+        tbtn2('↶', "Undo (Ctrl+Z)", lambda: self._js("EditorAPI.undo();"))
+        tbtn2('↷', "Redo (Ctrl+Y)", lambda: self._js("EditorAPI.redo();"))
+        tbtn2('⚭', "Group (Ctrl+G)", lambda: self._js("EditorAPI.group();"))
+        tbtn2('⚮', "Ungroup (Ctrl+Shift+G)", lambda: self._js("EditorAPI.ungroup();"))
+        tbtn2('⧉', "Copy (Ctrl+C)", lambda: self._js("EditorAPI.copy();"))
+        tbtn2('☑', "Paste (Ctrl+V)", lambda: self._js("EditorAPI.paste();"))
+        row2.addStretch()
+
+        top_lay.addLayout(row1)
+        top_lay.addLayout(row2)
         root.addWidget(top)
 
         # ─── Center area (canvas + properties) ───────────────────────────────
@@ -429,6 +456,29 @@ class DesignerTab(QWidget):
         self._js(f"EditorAPI.setBrushWidth({val});")
 
     def keyPressEvent(self, event):
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_Z:
+            self._js("EditorAPI.undo();")
+            event.accept()
+            return
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_Y:
+            self._js("EditorAPI.redo();")
+            event.accept()
+            return
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_G:
+            if event.modifiers() & Qt.ShiftModifier:
+                self._js("EditorAPI.ungroup();")
+            else:
+                self._js("EditorAPI.group();")
+            event.accept()
+            return
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_C:
+            self._js("EditorAPI.copy();")
+            event.accept()
+            return
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
+            self._js("EditorAPI.paste();")
+            event.accept()
+            return
         if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
             self._js("""
                 if (canvas.getActiveObject() && !(canvas.getActiveObject().isEditing)) {

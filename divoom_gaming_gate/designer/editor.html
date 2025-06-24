@@ -104,7 +104,7 @@
         })).setActiveObject(canvas.item(canvas.size() - 1));
       },
       newText(t) {
-        canvas.add(new fabric.Text(t, {
+        canvas.add(new fabric.IText(t, {
           left: 60,
           top: 60,
           fill: 'white',
@@ -249,7 +249,87 @@
           pyObj.setStrokeWidth(canvas.freeDrawingBrush.width);
         }
       },
+      undo() {
+        if (stateStack.length > 1) {
+          redoStack.push(stateStack.pop());
+          isRestoring = true;
+          canvas.loadFromJSON(stateStack[stateStack.length - 1], function() {
+              canvas.renderAll();
+              isRestoring = false;
+          });
+        }
+      },
+      redo() {
+        if (redoStack.length > 0) {
+          let state = redoStack.pop();
+          stateStack.push(state);
+          isRestoring = true;
+          canvas.loadFromJSON(state, function() {
+              canvas.renderAll();
+              isRestoring = false;
+          });
+        }
+      },
+      group() {
+        if (!canvas.getActiveObject()) return;
+        if (canvas.getActiveObject().type !== 'activeSelection') return;
+        canvas.getActiveObject().toGroup();
+        canvas.requestRenderAll();
+        saveState();
+      },
+      ungroup() {
+        let obj = canvas.getActiveObject();
+        if (obj && obj.type === 'group') {
+          obj.toActiveSelection();
+          canvas.requestRenderAll();
+          saveState();
+        }
+      },
+      copy() {
+        let activeObject = canvas.getActiveObject();
+        if (activeObject) {
+          activeObject.clone(function(cloned) {
+            clipboard = cloned;
+          });
+        }
+      },
+      paste() {
+        if (clipboard) {
+          clipboard.clone(function(clonedObj) {
+            canvas.discardActiveObject();
+            clonedObj.set({ left: clonedObj.left + 10, top: clonedObj.top + 10, evented: true });
+            if (clonedObj.type === 'activeSelection') {
+              // active selection needs a reference to the canvas
+              clonedObj.canvas = canvas;
+              clonedObj.forEachObject(function(obj) {
+                canvas.add(obj);
+              });
+              clonedObj.setCoords();
+            } else {
+              canvas.add(clonedObj);
+            }
+            canvas.setActiveObject(clonedObj);
+            canvas.requestRenderAll();
+            saveState();
+          });
+        }
+      },
     };
+
+    let stateStack = [];
+    let redoStack = [];
+    let isRestoring = false;
+
+    function saveState() {
+        if (isRestoring) return;
+        stateStack.push(JSON.stringify(canvas));
+        if (stateStack.length > 50) stateStack.shift(); // Limit stack size
+        redoStack = [];
+    }
+
+    canvas.on('object:added', saveState);
+    canvas.on('object:modified', saveState);
+    canvas.on('object:removed', saveState);
 
     [
       'object:modified',
@@ -258,6 +338,14 @@
       'text:changed'
     ].forEach(ev => canvas.on(ev, saveCur));
     canvas.on('path:created', saveCur);
+
+    canvas.on('mouse:dblclick', function(opt) {
+      const target = opt.target;
+      if (target && target.type === 'i-text') {
+        target.enterEditing();
+        target.hiddenTextarea && target.hiddenTextarea.focus();
+      }
+    });
 
     // --- WebChannel setup ---
     var pyObj = null;
