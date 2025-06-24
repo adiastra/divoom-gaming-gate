@@ -60,7 +60,7 @@ This screen allows you to create character images with backgrounds and character
 ![image](https://github.com/user-attachments/assets/bfbe22e6-f240-4a24-9748-b2f1f12ee8c9)
 
 
-This area is mostly self-explanatory and utilizes some of the built-in tools that are part of the Divoom API
+This area is mostly self-explanatory and utilizes some of the built-in tools that are part of the Divoom API. There is a stopwatch, a timer, a countdown timer, a scoreboard (red vs blue), a noise meter and an image splitter (for splitting any image into 5 images that can be sent to the screens).  
 
 -------------
 
