@@ -13,10 +13,7 @@ import toml
 
 from divoom_gaming_gate.utils.paths import SETTINGS_FILE
 
-try:
-    from importlib.metadata import version, PackageNotFoundError
-except ImportError:
-    from importlib_metadata import version, PackageNotFoundError  # For Python <3.8
+from importlib.metadata import version, PackageNotFoundError
 
 class SettingsTab(QWidget):
     def __init__(self, parent=None):
