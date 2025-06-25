@@ -374,6 +374,39 @@
     document.getElementById('c').addEventListener('mousedown', function() {
       this.focus();
     });
+
+    document.addEventListener('keydown', function(e) {
+      // Mac: e.metaKey (Cmd), Windows/Linux: e.ctrlKey
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+      if (ctrlOrCmd && e.key.toLowerCase() === 'c') {
+        EditorAPI.copy();
+        e.preventDefault();
+      }
+      if (ctrlOrCmd && e.key.toLowerCase() === 'v') {
+        EditorAPI.paste();
+        e.preventDefault();
+      }
+      if (ctrlOrCmd && e.key.toLowerCase() === 'z') {
+        EditorAPI.undo();
+        e.preventDefault();
+      }
+      if (ctrlOrCmd && e.key.toLowerCase() === 'y') {
+        EditorAPI.redo();
+        e.preventDefault();
+      }
+      // Group: Ctrl/Cmd+G
+      if (ctrlOrCmd && !e.shiftKey && e.key.toLowerCase() === 'g') {
+        EditorAPI.group();
+        e.preventDefault();
+      }
+      // Ungroup: Ctrl/Cmd+Shift+G
+      if (ctrlOrCmd && e.shiftKey && e.key.toLowerCase() === 'g') {
+        EditorAPI.ungroup();
+        e.preventDefault();
+      }
+    });
   </script>
 </body>
 </html>

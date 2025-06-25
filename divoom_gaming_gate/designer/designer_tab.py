@@ -456,26 +456,31 @@ class DesignerTab(QWidget):
         self._js(f"EditorAPI.setBrushWidth({val});")
 
     def keyPressEvent(self, event):
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_Z:
+        modifiers = event.modifiers()
+        is_ctrl = modifiers & Qt.ControlModifier
+        is_cmd = modifiers & Qt.MetaModifier  # Command key on Mac
+
+        # Use is_ctrl or is_cmd for shortcuts
+        if (is_ctrl or is_cmd) and event.key() == Qt.Key_Z:
             self._js("EditorAPI.undo();")
             event.accept()
             return
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_Y:
+        if (is_ctrl or is_cmd) and event.key() == Qt.Key_Y:
             self._js("EditorAPI.redo();")
             event.accept()
             return
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_G:
-            if event.modifiers() & Qt.ShiftModifier:
+        if (is_ctrl or is_cmd) and event.key() == Qt.Key_G:
+            if modifiers & Qt.ShiftModifier:
                 self._js("EditorAPI.ungroup();")
             else:
                 self._js("EditorAPI.group();")
             event.accept()
             return
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_C:
+        if (is_ctrl or is_cmd) and event.key() == Qt.Key_C:
             self._js("EditorAPI.copy();")
             event.accept()
             return
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
+        if (is_ctrl or is_cmd) and event.key() == Qt.Key_V:
             self._js("EditorAPI.paste();")
             event.accept()
             return
