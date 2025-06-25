@@ -53,6 +53,11 @@ class SettingsTab(QWidget):
         ip_layout.addWidget(find_btn)
         layout.addLayout(ip_layout)
 
+        # --- Instruction label directly under IP section ---
+        ip_help_label = QLabel('Click "Find" to locate a device or enter the IP manually')
+        ip_help_label.setStyleSheet("color: #aaa; font-size: 12px; margin-left: 4px;")
+        layout.addWidget(ip_help_label)
+
         # --- Device name label (initially empty) ---
         self.device_name_label = QLabel("")
         self.device_name_label.setStyleSheet("color: #8ecfff; font-size: 12px; margin-left: 4px;")
@@ -154,7 +159,7 @@ class SettingsTab(QWidget):
         hour_layout = QHBoxLayout()
         hour_layout.addWidget(QLabel("Clock Format:"))
         self.hour_mode_combo = QComboBox()
-        self.hour_mode_combo.addItems(["24-hour", "12-hour"])
+        self.hour_mode_combo.addItems(["12-hour", "24-hour"])
         self.hour_mode_combo.currentIndexChanged.connect(self.set_hour_mode)
         hour_layout.addWidget(self.hour_mode_combo)
         layout.addLayout(hour_layout)
@@ -285,19 +290,19 @@ class SettingsTab(QWidget):
         except Exception:
             pass  # Silently ignore errors for now
 
-    def set_hour_mode(self):
+    def set_hour_mode(self, index):
         ip = self.ip_edit.text().strip()
         if not ip:
+            QMessageBox.warning(self, "Clock Format", "Please enter the device IP.")
             return
-        mode = self.hour_mode_combo.currentIndex()  # 0 = 24-hour, 1 = 12-hour
         payload = {
             "Command": "Device/SetTime24Flag",
-            "Mode": mode
+            "Mode": index  # 0 for 12-hour, 1 for 24-hour
         }
         try:
             requests.post(f"http://{ip}/post", json=payload, timeout=4)
-        except Exception:
-            pass  # Silently ignore errors for now
+        except Exception as e:
+            QMessageBox.warning(self, "Clock Format", f"Error: {e}")
 
     def get_current_version(self):
         try:
