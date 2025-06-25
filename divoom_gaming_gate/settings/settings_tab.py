@@ -31,7 +31,7 @@ class SettingsTab(QWidget):
 
         # Group box for settings
         group = QGroupBox("Device Settings")
-        group.setMaximumWidth(400)  # Adjust width as needed
+        group.setMaximumWidth(400)
         group.setStyleSheet(
             "QGroupBox { color: white; font-size: 14px; border: 1px inset #666; border-radius: 6px; margin-top: 8px; }"
             "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }"
@@ -46,7 +46,18 @@ class SettingsTab(QWidget):
         ip_layout = QHBoxLayout()
         ip_layout.addWidget(QLabel("Device IP:"))
         ip_layout.addWidget(self.ip_edit)
+        # --- Add Find button ---
+        find_btn = QPushButton("Find")
+        find_btn.setFixedWidth(50)
+        find_btn.clicked.connect(self.find_lan_device)
+        ip_layout.addWidget(find_btn)
         layout.addLayout(ip_layout)
+
+        # --- Device name label (initially empty) ---
+        self.device_name_label = QLabel("")
+        self.device_name_label.setStyleSheet("color: #8ecfff; font-size: 12px; margin-left: 4px;")
+        layout.addWidget(self.device_name_label)
+
 
         # Brightness slider
         bright_layout = QHBoxLayout()
@@ -60,6 +71,26 @@ class SettingsTab(QWidget):
         self.bright_slider.valueChanged.connect(lambda v: self.bright_label.setText(str(v)))
         bright_layout.addWidget(self.bright_label)
         layout.addLayout(bright_layout)
+
+        # --- Screens On/Off slider ---
+        screens_layout = QHBoxLayout()
+        screens_label = QLabel("Screens:")
+        screens_layout.addWidget(screens_label)
+
+        self.screens_slider = QSlider(Qt.Horizontal)
+        self.screens_slider.setMinimum(0)
+        self.screens_slider.setMaximum(1)
+        self.screens_slider.setValue(1)  # Default is ON
+        self.screens_slider.setTickPosition(QSlider.TicksBelow)
+        self.screens_slider.setTickInterval(1)
+        self.screens_slider.setSingleStep(1)
+        self.screens_slider.setFixedWidth(80)
+        self.screens_slider.valueChanged.connect(self.toggle_screens_off)
+        screens_layout.addWidget(QLabel("Off"))
+        screens_layout.addWidget(self.screens_slider)
+        screens_layout.addWidget(QLabel("On"))
+        screens_layout.addStretch()
+        layout.addLayout(screens_layout)
 
         # Time zone dropdown
         tz_layout = QHBoxLayout()
@@ -151,6 +182,13 @@ class SettingsTab(QWidget):
         update_btn.setStyleSheet("QPushButton:hover { background: #222; }")
         version_layout.addWidget(update_btn)
         layout.addLayout(version_layout)
+
+        # Reboot button
+        reboot_btn = QPushButton("Reboot Device")
+        reboot_btn.clicked.connect(self.reboot_device)
+        reboot_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+        layout.addWidget(reboot_btn)
+
 
         # Now that all widgets exist, load settings
         self.load_settings()
@@ -314,3 +352,55 @@ class SettingsTab(QWidget):
                 QMessageBox.information(self, "Update", "You are up to date.")
         except Exception as e:
             QMessageBox.warning(self, "Update Error", f"Could not check for updates:\n{e}")
+
+    def find_lan_device(self):
+        """Find Divoom device on LAN and fill IP and device name."""
+        try:
+            resp = requests.post(
+                "https://app.divoom-gz.com/Device/ReturnSameLANDevice",
+                json={},
+                timeout=10
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            devices = data.get("DeviceList", [])
+            if not devices:
+                QMessageBox.information(self, "Find Device", "No Divoom devices found on your LAN.")
+                return
+            # Use the first device found
+            device = devices[0]
+            ip = device.get("DevicePrivateIP", "")
+            name = device.get("DeviceName", "Unknown")
+            self.ip_edit.setText(ip)
+            self.device_name_label.setText(f"Device: {name}")
+        except Exception as e:
+            QMessageBox.warning(self, "Find Device", f"Error: {e}")
+
+    def reboot_device(self):
+        ip = self.ip_edit.text().strip()
+        if not ip:
+            QMessageBox.warning(self, "Reboot", "Please enter the device IP.")
+            return
+        payload = {"Command": "Device/SysReboot"}
+        try:
+            resp = requests.post(f"http://{ip}/post", json=payload, timeout=5)
+            if resp.ok:
+                QMessageBox.information(self, "Reboot", "Reboot command sent to device.")
+            else:
+                QMessageBox.warning(self, "Reboot", f"HTTP error: {resp.status_code}")
+        except Exception as e:
+            QMessageBox.warning(self, "Reboot", f"Error: {e}")
+
+    def toggle_screens_off(self, value):
+        ip = self.ip_edit.text().strip()
+        if not ip:
+            QMessageBox.warning(self, "Screens", "Please enter the device IP.")
+            return
+        payload = {
+            "Command": "Channel/OnOffScreen",
+            "OnOff": value  # 0 = Off, 1 = On
+        }
+        try:
+            requests.post(f"http://{ip}/post", json=payload, timeout=4)
+        except Exception as e:
+            QMessageBox.warning(self, "Screens", f"Error: {e}")
