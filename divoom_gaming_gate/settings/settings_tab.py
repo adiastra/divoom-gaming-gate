@@ -20,6 +20,7 @@ class SettingsTab(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background:#2b2b2b;")
         self.ip_edit = QLineEdit()
+        self.loading_settings = False  # Add this flag
 
         # Main layout for the tab
         main_layout = QHBoxLayout(self)
@@ -238,6 +239,7 @@ class SettingsTab(QWidget):
         self.load_settings()
 
     def load_settings(self):
+        self.loading_settings = True
         if os.path.exists(SETTINGS_FILE):
             with open(SETTINGS_FILE, "r") as f:
                 settings = json.load(f)
@@ -252,6 +254,7 @@ class SettingsTab(QWidget):
         else:
             self.ip_edit.setText("")
             self.tenor_api_edit.setText("")
+        self.loading_settings = False
 
     def save_settings(self):
         settings = {
@@ -267,6 +270,8 @@ class SettingsTab(QWidget):
         QMessageBox.information(self, "Settings", "Settings saved.")
 
     def set_brightness(self, value):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
             return
@@ -280,6 +285,8 @@ class SettingsTab(QWidget):
             pass  # Silently ignore errors for now
 
     def set_timezone(self):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
             return
@@ -313,8 +320,9 @@ class SettingsTab(QWidget):
         except Exception:
             pass  # Silently ignore errors for now
 
-
     def sync_system_time(self):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
             return
@@ -329,15 +337,14 @@ class SettingsTab(QWidget):
                     "Utc": utc_ts
                 }
                 requests.post(f"http://{ip}/post", json=payload, timeout=4)
-            # Optionally, show a message if you want:
-            # QMessageBox.information(self, "Time Sync", "Device time synced to UTC.")
         except Exception:
             pass  # Silently ignore errors for now
 
     def set_hour_mode(self, index):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
-            QMessageBox.warning(self, "Clock Format", "Please enter the device IP.")
             return
         payload = {
             "Command": "Device/SetTime24Flag",
@@ -345,8 +352,8 @@ class SettingsTab(QWidget):
         }
         try:
             requests.post(f"http://{ip}/post", json=payload, timeout=4)
-        except Exception as e:
-            QMessageBox.warning(self, "Clock Format", f"Error: {e}")
+        except Exception:
+            pass  # Silently ignore errors for now
 
     def get_current_version(self):
         try:
@@ -403,7 +410,8 @@ class SettingsTab(QWidget):
             QMessageBox.warning(self, "Update Error", f"Could not check for updates:\n{e}")
 
     def find_lan_device(self):
-        """Find Divoom device on LAN and fill IP and device name."""
+        if self.loading_settings:
+            return
         try:
             resp = requests.post(
                 "https://app.divoom-gz.com/Device/ReturnSameLANDevice",
@@ -426,6 +434,8 @@ class SettingsTab(QWidget):
             QMessageBox.warning(self, "Find Device", f"Error: {e}")
 
     def reboot_device(self):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
             QMessageBox.warning(self, "Reboot", "Please enter the device IP.")
@@ -441,6 +451,8 @@ class SettingsTab(QWidget):
             QMessageBox.warning(self, "Reboot", f"Error: {e}")
 
     def toggle_screens_off(self, value):
+        if self.loading_settings:
+            return
         ip = self.ip_edit.text().strip()
         if not ip:
             QMessageBox.warning(self, "Screens", "Please enter the device IP.")
