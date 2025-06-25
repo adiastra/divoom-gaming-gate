@@ -32,6 +32,16 @@ def get_tenor_api_key():
         return settings.get("tenor_api_key", "").strip()
     return ""
 
+def get_tenor_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r") as f:
+            settings = json.load(f)
+        return (
+            settings.get("tenor_api_key", "").strip(),
+            settings.get("tenor_filter", "medium")
+        )
+    return "", "medium"
+
 class ScreenControl(QWidget):
     def __init__(self, screen_index):
         super().__init__()
@@ -239,7 +249,7 @@ class ScreenControl(QWidget):
                 break
 
     def open_gif_browser(self):
-        api_key = get_tenor_api_key()
+        api_key, tenor_filter = get_tenor_settings()
         if not api_key:
             msg = QMessageBox(self)
             msg.setWindowTitle("Tenor API Key Required")
@@ -252,7 +262,7 @@ class ScreenControl(QWidget):
                 webbrowser.open("https://developers.google.com/tenor/guides/quickstart")
             return
 
-        dlg = GifBrowserDialog(self, api_key=api_key)
+        dlg = GifBrowserDialog(self, api_key=api_key, tenor_filter=tenor_filter)
         if dlg.exec_() == QDialog.Accepted and dlg.selected_url:
             self.load_gif_from_url(dlg.selected_url)
 
@@ -305,9 +315,10 @@ class GifBridge(QObject):
         self.dialog.accept()
 
 class GifBrowserDialog(QDialog):
-    def __init__(self, parent=None, api_key=None):
+    def __init__(self, parent=None, api_key=None, tenor_filter="medium"):
         super().__init__(parent)
         self.api_key = api_key or ""
+        self.tenor_filter = tenor_filter
         self.setWindowTitle("Tenor GIF Browser")
         self.setMinimumSize(500, 500)
         self.selected_url = None
@@ -381,10 +392,11 @@ class GifBrowserDialog(QDialog):
 
     def do_search(self, pos=None):
         api_key = self.api_key
+        tenor_filter = self.tenor_filter
         q = self.search_edit.text().strip()
         if not q:
             return
-        url = f"https://tenor.googleapis.com/v2/search?q={q}&key={api_key}&limit=20&media_filter=gif"
+        url = f"https://tenor.googleapis.com/v2/search?q={q}&key={api_key}&limit=20&media_filter=gif&contentfilter={tenor_filter}"
         if pos:
             url += f"&pos={pos}"
         try:

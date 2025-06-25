@@ -192,6 +192,15 @@ class SettingsTab(QWidget):
         tenor_link.setAlignment(Qt.AlignHCenter)
         tenor_vlayout.addWidget(tenor_link)
 
+        # --- Tenor Content Filter dropdown ---
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Tenor Content Filter:"))
+        self.tenor_filter_combo = QComboBox()
+        self.tenor_filter_combo.addItems(["off", "low", "medium", "high"])
+        self.tenor_filter_combo.setCurrentText("medium")  # Default
+        filter_layout.addWidget(self.tenor_filter_combo)
+        tenor_vlayout.addLayout(filter_layout)
+
         layout.addLayout(tenor_vlayout)
 
         save_btn = QPushButton("Save Settings")
@@ -239,6 +248,7 @@ class SettingsTab(QWidget):
             self.dst_checkbox.setChecked(settings.get("dst", False))
             self.hour_mode_combo.setCurrentIndex(settings.get("hour_mode", 0))
             self.tenor_api_edit.setText(settings.get("tenor_api_key", ""))
+            self.tenor_filter_combo.setCurrentText(settings.get("tenor_filter", "medium"))
         else:
             self.ip_edit.setText("")
             self.tenor_api_edit.setText("")
@@ -249,7 +259,8 @@ class SettingsTab(QWidget):
             "timezone_city": self.tz_combo.currentText(),
             "dst": self.dst_checkbox.isChecked(),
             "hour_mode": self.hour_mode_combo.currentIndex(),
-            "tenor_api_key": self.tenor_api_edit.text().strip()  # <-- Add this line
+            "tenor_api_key": self.tenor_api_edit.text().strip(),
+            "tenor_filter": self.tenor_filter_combo.currentText()
         }
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)
