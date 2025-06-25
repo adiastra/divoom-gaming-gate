@@ -41,21 +41,25 @@ class SettingsTab(QWidget):
 
         layout = QVBoxLayout(group)
         layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
+        layout.setSpacing(0)  # No spacing for flush positioning of IP/help
 
         ip_layout = QHBoxLayout()
+        ip_layout.setSpacing(0)
+        ip_layout.setContentsMargins(0, 0, 0, 0)
         ip_layout.addWidget(QLabel("Device IP:"))
         ip_layout.addWidget(self.ip_edit)
         # --- Add Find button ---
         find_btn = QPushButton("Find")
         find_btn.setFixedWidth(50)
+        find_btn.setContentsMargins(0, 0, 0, 0)
         find_btn.clicked.connect(self.find_lan_device)
         ip_layout.addWidget(find_btn)
         layout.addLayout(ip_layout)
 
-        # --- Instruction label directly under IP section ---
+        # --- Instruction label directly under IP section, flush ---
         ip_help_label = QLabel('Click "Find" to locate a device or enter the IP manually')
-        ip_help_label.setStyleSheet("color: #aaa; font-size: 12px; margin-left: 4px;")
+        ip_help_label.setStyleSheet("color: #aaa; font-size: 12px; margin: 0; padding: 0;")
+        ip_help_label.setAlignment(Qt.AlignHCenter)
         layout.addWidget(ip_help_label)
 
         # --- Device name label (initially empty) ---
@@ -63,6 +67,8 @@ class SettingsTab(QWidget):
         self.device_name_label.setStyleSheet("color: #8ecfff; font-size: 12px; margin-left: 4px;")
         layout.addWidget(self.device_name_label)
 
+        # Restore normal spacing for the rest of the controls
+        layout.setSpacing(14)
 
         # Brightness slider
         bright_layout = QHBoxLayout()
