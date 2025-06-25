@@ -11,6 +11,9 @@ from io import BytesIO
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtCore import pyqtSlot, QObject
+import os
+import json
+from ..utils.paths import SETTINGS_FILE
 
 # IP from config
 from ..utils.config import Config
@@ -21,6 +24,13 @@ IMG_SIZE        = 128
 DEFAULT_SPEED   = 100
 DEFAULT_QUALITY = 85
 MAX_SKIP        = 10
+
+def get_tenor_api_key():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r") as f:
+            settings = json.load(f)
+        return settings.get("tenor_api_key", "").strip()
+    return ""
 
 class ScreenControl(QWidget):
     def __init__(self, screen_index):
@@ -229,7 +239,20 @@ class ScreenControl(QWidget):
                 break
 
     def open_gif_browser(self):
-        dlg = GifBrowserDialog(self)
+        api_key = get_tenor_api_key()
+        if not api_key:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Tenor API Key Required")
+            msg.setText("Go to the Settings tab to add your Tenor API Key.")
+            ok_btn = msg.addButton("OK", QMessageBox.AcceptRole)
+            get_btn = msg.addButton("Get API Key", QMessageBox.ActionRole)
+            msg.exec_()
+            if msg.clickedButton() == get_btn:
+                import webbrowser
+                webbrowser.open("https://developers.google.com/tenor/guides/quickstart")
+            return
+
+        dlg = GifBrowserDialog(self, api_key=api_key)
         if dlg.exec_() == QDialog.Accepted and dlg.selected_url:
             self.load_gif_from_url(dlg.selected_url)
 
@@ -282,8 +305,9 @@ class GifBridge(QObject):
         self.dialog.accept()
 
 class GifBrowserDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, api_key=None):
         super().__init__(parent)
+        self.api_key = api_key or ""
         self.setWindowTitle("Tenor GIF Browser")
         self.setMinimumSize(500, 500)
         self.selected_url = None
@@ -356,7 +380,7 @@ class GifBrowserDialog(QDialog):
         self.search_timer.start(400)
 
     def do_search(self, pos=None):
-        api_key = "AIzaSyDW9J05UI8jOQsz-fqxs1yM6uUK0MkJ5tY"
+        api_key = self.api_key
         q = self.search_edit.text().strip()
         if not q:
             return

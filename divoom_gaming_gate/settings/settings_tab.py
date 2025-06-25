@@ -164,6 +164,33 @@ class SettingsTab(QWidget):
         hour_layout.addWidget(self.hour_mode_combo)
         layout.addLayout(hour_layout)
 
+        # --- Tenor API Key input and link ---
+        tenor_vlayout = QVBoxLayout()
+        tenor_vlayout.setSpacing(0)  # Remove extra space between widgets
+
+        tenor_hlayout = QHBoxLayout()
+        tenor_hlayout.addWidget(QLabel("Tenor API Key:"))
+        self.tenor_api_edit = QLineEdit()
+        self.tenor_api_edit.setPlaceholderText("Enter your Tenor API Key")
+        # Make font smaller and less bright
+        self.tenor_api_edit.setStyleSheet("""
+            margin-bottom:0px;
+            font-size: 12px;
+            color: #b0b0b0;
+            background: #232323;
+        """)
+        tenor_hlayout.addWidget(self.tenor_api_edit)
+        tenor_vlayout.addLayout(tenor_hlayout)
+
+        # Centered link directly under the textbox, no top margin
+        tenor_link = QLabel('<a href="https://developers.google.com/tenor/guides/quickstart">Get a Tenor API Key</a>')
+        tenor_link.setOpenExternalLinks(True)
+        tenor_link.setStyleSheet("color: #8ecfff; font-size: 11px; margin-top:0px;")
+        tenor_link.setAlignment(Qt.AlignHCenter)
+        tenor_vlayout.addWidget(tenor_link)
+
+        layout.addLayout(tenor_vlayout)
+
         save_btn = QPushButton("Save Settings")
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
@@ -208,15 +235,18 @@ class SettingsTab(QWidget):
                 self.tz_combo.setCurrentText(city)
             self.dst_checkbox.setChecked(settings.get("dst", False))
             self.hour_mode_combo.setCurrentIndex(settings.get("hour_mode", 0))
+            self.tenor_api_edit.setText(settings.get("tenor_api_key", ""))
         else:
             self.ip_edit.setText("")
+            self.tenor_api_edit.setText("")
 
     def save_settings(self):
         settings = {
             "device_ip": self.ip_edit.text().strip(),
             "timezone_city": self.tz_combo.currentText(),
             "dst": self.dst_checkbox.isChecked(),
-            "hour_mode": self.hour_mode_combo.currentIndex()
+            "hour_mode": self.hour_mode_combo.currentIndex(),
+            "tenor_api_key": self.tenor_api_edit.text().strip()  # <-- Add this line
         }
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)
