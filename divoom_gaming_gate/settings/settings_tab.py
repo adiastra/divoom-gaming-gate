@@ -204,6 +204,32 @@ class SettingsTab(QWidget):
 
         layout.addLayout(tenor_vlayout)
 
+        # --- Pixellab.ai API Key input and link ---
+        pixellab_vlayout = QVBoxLayout()
+        pixellab_vlayout.setSpacing(0)
+
+        pixellab_hlayout = QHBoxLayout()
+        pixellab_hlayout.addWidget(QLabel("Pixellab.ai API Key:"))
+        self.pixellab_api_edit = QLineEdit()
+        self.pixellab_api_edit.setPlaceholderText("Enter your Pixellab.ai API Key")
+        self.pixellab_api_edit.setStyleSheet("""
+            margin-bottom:0px;
+            font-size: 12px;
+            color: #b0b0b0;
+            background: #232323;
+        """)
+        pixellab_hlayout.addWidget(self.pixellab_api_edit)
+        pixellab_vlayout.addLayout(pixellab_hlayout)
+
+        # Centered link under the textbox
+        pixellab_link = QLabel('<a href="https://api.pixellab.ai/v1/docs">Get a Pixellab.ai API Key</a>')
+        pixellab_link.setOpenExternalLinks(True)
+        pixellab_link.setStyleSheet("color: #8ecfff; font-size: 11px; margin-top:0px;")
+        pixellab_link.setAlignment(Qt.AlignHCenter)
+        pixellab_vlayout.addWidget(pixellab_link)
+
+        layout.addLayout(pixellab_vlayout)
+
         save_btn = QPushButton("Save Settings")
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
@@ -251,9 +277,11 @@ class SettingsTab(QWidget):
             self.hour_mode_combo.setCurrentIndex(settings.get("hour_mode", 0))
             self.tenor_api_edit.setText(settings.get("tenor_api_key", ""))
             self.tenor_filter_combo.setCurrentText(settings.get("tenor_filter", "medium"))
+            self.pixellab_api_edit.setText(settings.get("pixellab_api_key", ""))
         else:
             self.ip_edit.setText("")
             self.tenor_api_edit.setText("")
+            self.pixellab_api_edit.setText("")
         self.loading_settings = False
 
     def save_settings(self):
@@ -263,7 +291,8 @@ class SettingsTab(QWidget):
             "dst": self.dst_checkbox.isChecked(),
             "hour_mode": self.hour_mode_combo.currentIndex(),
             "tenor_api_key": self.tenor_api_edit.text().strip(),
-            "tenor_filter": self.tenor_filter_combo.currentText()
+            "tenor_filter": self.tenor_filter_combo.currentText(),
+            "pixellab_api_key": self.pixellab_api_edit.text().strip()  # <-- Add this line
         }
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)

@@ -69,6 +69,7 @@
           cornerColor: 'cyan',
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
+        saveCur();
       },
       newCircle() {
         canvas.add(new fabric.Circle({
@@ -81,6 +82,7 @@
           cornerColor: 'cyan',
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
+        saveCur();
       },
       newPolygon(sides = 6) {
         sides = Math.max(3, Math.min(12, Number(sides) || 6));
@@ -102,6 +104,7 @@
           cornerColor: 'cyan',
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
+        saveCur();
       },
       newText(t) {
         canvas.add(new fabric.IText(t, {
@@ -112,6 +115,7 @@
           cornerColor: 'cyan',
           cornerSize: 8
         })).setActiveObject(canvas.item(canvas.size() - 1));
+        saveCur();
       },
       newLine() {
         // Add a simple diagonal line
@@ -123,26 +127,72 @@
           cornerSize: 8
         });
         canvas.add(line).setActiveObject(line);
+        saveCur();
       },
       clear() {
         canvas.clear();
         canvas.setBackgroundColor('#222');
+        saveCur();
       },
       exportFrame() {
         return canvas.toDataURL({ format: 'png' });
       },
-      exportAllFrames() {
+      exportAllFrames(callback) {
         saveCur();
-        return frames.map(js => {
+        if (frames.length === 0) {
+          frames.push(canvas.toJSON());
+        }
+        console.log("Exporting frames, count:", frames.length);
+        let results = [];
+        let idx = 0;
+        function processNext() {
+          if (idx >= frames.length) {
+            callback(results);
+            return;
+          }
+          const js = frames[idx];
           const sc = new fabric.StaticCanvas(null, {
             width: 128,
             height: 128,
             backgroundColor: '#222'
           });
-          sc.setZoom(1); // No zoom for 128x128 export
-          sc.loadFromJSON(js, sc.renderAll.bind(sc));
-          return sc.toDataURL({ format: 'png' });
-        });
+          sc.setZoom(1);
+          sc.loadFromJSON(js, function() {
+            sc.renderAll();
+            results.push(sc.toDataURL({ format: 'png' }));
+            idx++;
+            processNext();
+          });
+        }
+        processNext();
+      },
+      exportAllFramesSync() {
+        saveCur();
+        if (frames.length === 0) {
+          frames.push(canvas.toJSON());
+        }
+        let results = [];
+        let idx = 0;
+        function processNext() {
+          if (idx >= frames.length) {
+            window.EXPORTED_FRAMES = results;
+            return;
+          }
+          const js = frames[idx];
+          const sc = new fabric.StaticCanvas(null, {
+            width: 128,
+            height: 128,
+            backgroundColor: '#222'
+          });
+          sc.setZoom(1);
+          sc.loadFromJSON(js, function() {
+            sc.renderAll();
+            results.push(sc.toDataURL({ format: 'png' }));
+            idx++;
+            processNext();
+          });
+        }
+        processNext();
       },
       addFrame() {
         saveCur();
@@ -313,6 +363,18 @@
             saveState();
           });
         }
+      },
+      addImageFromDataURL(dataURL) {
+        var img = new Image();
+        img.onload = function() {
+          var fabricImg = new fabric.Image(img);
+          canvas.add(fabricImg);
+          canvas.setActiveObject(fabricImg);
+          canvas.renderAll();
+          if (typeof saveState === "function") saveState();
+          saveCur();
+        };
+        img.src = dataURL;
       },
     };
 

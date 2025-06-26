@@ -1,18 +1,18 @@
 import os, json, base64, io, requests
 from PIL import Image
-from PyQt5.QtCore import Qt, QUrl, pyqtSlot
+from PyQt5.QtCore import Qt, QUrl, pyqtSlot, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QLabel,
-
-    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QComboBox, QSizePolicy, QFileDialog, QSlider, QGroupBox
+    QInputDialog, QMessageBox, QColorDialog, QSpinBox, QDoubleSpinBox, QComboBox, QSizePolicy, QFileDialog, QGroupBox, QLineEdit, QTextEdit
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
 from ..utils.config import Config
 import importlib.resources
+import pixellab 
+import random
 
-# constants that match the rest of your code-base
 IMG_SIZE      = 128
 SCREEN_COUNT  = 5
 CANVAS_PIX    = IMG_SIZE * 4  # 4× zoomed canvas
@@ -46,7 +46,7 @@ class DesignerTab(QWidget):
         group_layout.setContentsMargins(0, 0, 0, 0)
         group_layout.setSpacing(0)
 
-        # Your original root layout (now for the group box)
+        # Root layout for the group box
         root = QVBoxLayout()
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -79,6 +79,7 @@ class DesignerTab(QWidget):
         tbtn1('／', "Add line", lambda: self.set_tool('line'), ref='line')
         tbtn1('T', "Add text", lambda: self.set_tool('text'), ref='text')
         tbtn1('🖌️', "Freehand draw", lambda: self.set_tool('draw'), ref='draw')
+        tbtn1('🖼️', "Import image (gif, jpg, png...)", self._import_image, ref='import')
         row1.addStretch()
 
         # Second row: actions
@@ -184,21 +185,16 @@ class DesignerTab(QWidget):
         sbtn.clicked.connect(self._change_stroke)
         obj_layout.addWidget(sbtn)
 
-        wlay = QHBoxLayout()
-        wlay.addWidget(QLabel("Width", styleSheet="color:white"))
-        self.stroke_slider = QSlider(Qt.Horizontal)
-        self.stroke_slider.setRange(1, 32)
-        self.stroke_slider.setValue(2)
-        self.stroke_slider.setFixedWidth(100)
-        self.stroke_slider.setToolTip("Stroke width")
-        self.stroke_slider.valueChanged.connect(self._set_stroke_width)
-        self.stroke_width_label = QLabel("2", styleSheet="color:white")
-        self.stroke_slider.valueChanged.connect(
-            lambda v: self.stroke_width_label.setText(str(v))
-        )
-        wlay.addWidget(self.stroke_slider)
-        wlay.addWidget(self.stroke_width_label)
-        obj_layout.addLayout(wlay)
+        # --- Stroke Width SpinBox (standalone QGroupBox) ---
+        stroke_width_group = QGroupBox("Stroke Width", self)
+        stroke_width_layout = QHBoxLayout(stroke_width_group)
+        self.stroke_width_spin = QSpinBox(stroke_width_group)
+        self.stroke_width_spin.setRange(1, 32)
+        self.stroke_width_spin.setValue(2)
+        self.stroke_width_spin.valueChanged.connect(self._set_stroke_width)
+        stroke_width_layout.addWidget(QLabel("Width:", stroke_width_group))
+        stroke_width_layout.addWidget(self.stroke_width_spin)
+        prop_layout.addWidget(stroke_width_group)
 
         self.font_label = QLabel("Font", styleSheet="color:white")
         obj_layout.addWidget(self.font_label)
@@ -314,18 +310,134 @@ class DesignerTab(QWidget):
         # Now set the main layout of the widget to contain only the group box
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(12)  # Add some space between group boxes if needed
+        main_layout.setSpacing(12)
         main_layout.addWidget(editor_group, alignment=Qt.AlignLeft | Qt.AlignTop)
-        # You can add a second group box here later:
-        # main_layout.addWidget(other_group_box, alignment=Qt.AlignLeft | Qt.AlignTop)
 
-    # ───────────────────── JavaScript helper ────────────────────────────────
+        # --- Pixellab AI Image Generator Group Box ---
+        ai_group = QGroupBox("Pixellab AI Image Generator")
+        ai_group.setStyleSheet(
+            "QGroupBox { color: white; font-size: 14px; border: 1px inset #666; border-radius: 6px; margin-top: 8px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }"
+        )
+        ai_layout = QVBoxLayout(ai_group)
+        ai_layout.setContentsMargins(8, 8, 8, 8)
+        ai_layout.setSpacing(8)
+
+        # Model (dropdown, at the top, default to pixflux)
+        self.ai_model_combo = QComboBox()
+        self.ai_model_combo.addItems([
+            "pixflux", "bitforge", "pixart", "stable-diffusion-xl", "stable-diffusion-v1-5", "stable-diffusion-2-1"
+        ])
+        self.ai_model_combo.setCurrentIndex(0)
+        ai_layout.addWidget(QLabel("Model:", styleSheet="color:white;"))
+        ai_layout.addWidget(self.ai_model_combo)
+
+        # Prompt
+        self.ai_prompt_label = QLabel("Prompt:", styleSheet="color:white;")
+        ai_layout.addWidget(self.ai_prompt_label)
+        self.ai_prompt_edit = QTextEdit()
+        self.ai_prompt_edit.setPlaceholderText("Describe your image...")
+        self.ai_prompt_edit.setStyleSheet("color:white;background:#333; font-size:13px;")
+        self.ai_prompt_edit.setFixedHeight(60)
+        ai_layout.addWidget(self.ai_prompt_edit)
+
+        # Negative Prompt
+        self.negative_prompt_widget = QWidget()
+        neg_layout = QVBoxLayout(self.negative_prompt_widget)
+        neg_layout.setContentsMargins(0, 0, 0, 0)
+        neg_layout.addWidget(QLabel("Negative Prompt:", styleSheet="color:white;"))
+        self.ai_negative_prompt_edit = QLineEdit()
+        self.ai_negative_prompt_edit.setPlaceholderText("What should NOT appear (optional)")
+        neg_layout.addWidget(self.ai_negative_prompt_edit)
+        ai_layout.addWidget(self.negative_prompt_widget)
+
+        # Style
+        self.style_widget = QWidget()
+        style_layout = QVBoxLayout(self.style_widget)
+        style_layout.setContentsMargins(0, 0, 0, 0)
+        self.ai_style_combo = QComboBox()
+        self.ai_style_combo.addItems([
+            "", "anime", "photographic", "digital-art", "comic-book", "fantasy-art", "line-art", "analog-film", "neon-punk"
+        ])
+        style_layout.addWidget(QLabel("Style:", styleSheet="color:white;"))
+        style_layout.addWidget(self.ai_style_combo)
+        ai_layout.addWidget(self.style_widget)
+
+        # Scheduler
+        self.scheduler_widget = QWidget()
+        scheduler_layout = QVBoxLayout(self.scheduler_widget)
+        scheduler_layout.setContentsMargins(0, 0, 0, 0)
+        self.ai_scheduler_combo = QComboBox()
+        self.ai_scheduler_combo.addItems([
+            "", "DDIM", "DPMSolverMultistep", "Euler", "EulerAncestral", "Heun", "KDPM2Ancestral", "KDPM2", "LMS", "PNDM"
+        ])
+        scheduler_layout.addWidget(QLabel("Scheduler:", styleSheet="color:white;"))
+        scheduler_layout.addWidget(self.ai_scheduler_combo)
+        ai_layout.addWidget(self.scheduler_widget)
+
+        # Seed (optional)
+        self.seed_widget = QWidget()
+        seed_layout = QHBoxLayout(self.seed_widget)
+        seed_layout.setContentsMargins(0, 0, 0, 0)
+        seed_layout.addWidget(QLabel("Seed:", styleSheet="color:white;"))
+        self.ai_seed_spin = QSpinBox()
+        self.ai_seed_spin.setRange(0, 2**31-1)
+        self.ai_seed_spin.setValue(random.randint(0, 2**31-1))  # Randomize on load
+        seed_layout.addWidget(self.ai_seed_spin)
+        ai_layout.addWidget(self.seed_widget)
+
+        # Status label
+        self.ai_status_lbl = QLabel("", styleSheet="color:#8ecfff;")
+        ai_layout.addWidget(self.ai_status_lbl)
+
+        # Image preview
+        self.ai_img_lbl = QLabel()
+        self.ai_img_lbl.setFixedSize(128, 128)
+        self.ai_img_lbl.setStyleSheet("background:#222; border:1px solid #444;")
+        ai_layout.addWidget(self.ai_img_lbl, alignment=Qt.AlignHCenter)
+
+        # Send to Canvas button
+        self.ai_send_canvas_btn = QToolButton(text="Send to Canvas", autoRaise=True)
+        self.ai_send_canvas_btn.setStyleSheet("color:white;font-size:14px")
+        self.ai_send_canvas_btn.setEnabled(False)
+        self.ai_send_canvas_btn.clicked.connect(self.send_ai_image_to_canvas)
+        ai_layout.addWidget(self.ai_send_canvas_btn)
+
+        # Generate Image button (at the bottom)
+        self.ai_generate_btn = QToolButton(text="Generate Image", autoRaise=True)
+        self.ai_generate_btn.setStyleSheet("color:white;font-size:14px")
+        self.ai_generate_btn.clicked.connect(self.generate_ai_image)
+        ai_layout.addWidget(self.ai_generate_btn)
+
+        # Image Size (Width/Height)
+        self.size_widget = QWidget()
+        size_layout = QHBoxLayout(self.size_widget)
+        size_layout.setContentsMargins(0, 0, 0, 0)
+        size_layout.addWidget(QLabel("Width:", styleSheet="color:white;"))
+        self.ai_width_spin = QSpinBox()
+        self.ai_width_spin.setRange(64, 1024)
+        self.ai_width_spin.setValue(IMG_SIZE)
+        size_layout.addWidget(self.ai_width_spin)
+        size_layout.addWidget(QLabel("Height:", styleSheet="color:white;"))
+        self.ai_height_spin = QSpinBox()
+        self.ai_height_spin.setRange(64, 1024)
+        self.ai_height_spin.setValue(IMG_SIZE)
+        size_layout.addWidget(self.ai_height_spin)
+        ai_layout.addWidget(self.size_widget)
+
+        main_layout.addWidget(ai_group, alignment=Qt.AlignLeft | Qt.AlignTop)
+
+        self.ai_model_combo.currentTextChanged.connect(self._update_ai_controls)
+        self._update_ai_controls()  # Set initial visibility (now safe)
+
+    def _update_label(self, label, value):
+        label.setText(str(value))
+
     def _js(self, code):
         self.view.page().runJavaScript(code, self._update_frame_lbl)
     def _update_frame_lbl(self, txt):
         if isinstance(txt,str) and '/' in txt: self.frame_lbl.setText(txt)
 
-    # ───────────────────── Toolbar actions ──────────────────────────────────
     def _add_text(self):
         txt, ok = QInputDialog.getText(self,"Insert Text","Text:")
         if ok and txt: self._js(f"EditorAPI.newText({json.dumps(txt)});")
@@ -337,15 +449,12 @@ class DesignerTab(QWidget):
         col = QColorDialog.getColor(QColor("white"), self, "Stroke")
         if col.isValid(): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('stroke','{col.name()}');canvas.renderAll();}}")
     def _set_stroke_width(self, w):
-        # Called when the slider is changed
         if getattr(self, 'current_tool', None) == 'draw':
             self._js(f"EditorAPI.setBrushWidth({w});")
         else:
             self._js(f"var o=canvas.getActiveObject();if(o){{o.set('strokeWidth',{w});canvas.renderAll();}}")
     def _set_font       (self,f ): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('fontFamily','{f}');canvas.renderAll();}}")
     def _set_font_size  (self,s ): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('fontSize',{s});canvas.renderAll();}}")
-
-    # ───────────────────── Send to Divoom ───────────────────────────────────
 
     def _send(self):
         import time
@@ -383,7 +492,7 @@ class DesignerTab(QWidget):
                         "Command":  "Draw/SendHttpGif",
                         "LcdArray": [int(cb.isChecked()) for cb in self.screen_checks],
                         "PicNum":   pic_num,
-                        "PicOffset":idx,              # 0 .. pic_num-1
+                        "PicOffset":idx,
                         "PicID":    pic_id,
                         "PicSpeed": 100,
                         "PicWidth": IMG_SIZE,
@@ -398,10 +507,10 @@ class DesignerTab(QWidget):
             except Exception as exc:
                 QMessageBox.critical(self, "Error", f"Failed to send:\n{exc}")
 
-        self.view.page().runJavaScript("EditorAPI.exportAllFrames();", process)
+        self.view.page().runJavaScript("EditorAPI.exportAllFramesSync();")
+        QTimer.singleShot(200, lambda: self.view.page().runJavaScript("window.EXPORTED_FRAMES", process))
 
     def export_gif(self):
-        # Ask JS for all frames as PNG data URLs
         def process(frames_js):
             frames = frames_js if isinstance(frames_js, list) else []
             if not frames:
@@ -415,7 +524,6 @@ class DesignerTab(QWidget):
             if not imgs:
                 QMessageBox.warning(self, "Export Error", "No images to export.")
                 return
-            # Ask user for file path
             path, _ = QFileDialog.getSaveFileName(self, "Save GIF/PNG", "", "GIF Image (*.gif);;PNG Image (*.png)")
             if not path:
                 return
@@ -425,7 +533,9 @@ class DesignerTab(QWidget):
                 imgs[0].save(path, format="PNG")
             QMessageBox.information(self, "Export", f"Saved: {path}")
 
-        self.view.page().runJavaScript("EditorAPI.exportAllFrames();", process)
+        # Use the same export logic as send-to-screen for reliability
+        self.view.page().runJavaScript("EditorAPI.exportAllFramesSync();")
+        QTimer.singleShot(200, lambda: self.view.page().runJavaScript("window.EXPORTED_FRAMES", process))
 
     @pyqtSlot(str)
     def selectionChanged(self, obj_type):
@@ -435,7 +545,6 @@ class DesignerTab(QWidget):
         self.font_combo.setVisible(is_text)
         self.font_size_label.setVisible(is_text)
         self.font_spin.setVisible(is_text)
-        # Get stroke width from JS
         self._js("EditorAPI.getSelectedStrokeWidth();")
 
     @pyqtSlot()
@@ -448,7 +557,6 @@ class DesignerTab(QWidget):
 
     @pyqtSlot(int, int)
     def updateFrameLabel(self, current, total):
-        # Frame numbers are 1-based for display
         self.frame_lbl.setText(f"{current+1}/{total}")
 
     @pyqtSlot(int)
@@ -458,9 +566,8 @@ class DesignerTab(QWidget):
     def keyPressEvent(self, event):
         modifiers = event.modifiers()
         is_ctrl = modifiers & Qt.ControlModifier
-        is_cmd = modifiers & Qt.MetaModifier  # Command key on Mac
+        is_cmd = modifiers & Qt.MetaModifier
 
-        # Use is_ctrl or is_cmd for shortcuts
         if (is_ctrl or is_cmd) and event.key() == Qt.Key_Z:
             self._js("EditorAPI.undo();")
             event.accept()
@@ -496,11 +603,9 @@ class DesignerTab(QWidget):
 
     @pyqtSlot(str)
     def set_tool(self, tool):
-        # Only highlight select and draw tools
         for key, btn in self.tool_buttons.items():
             if key in ('select', 'draw') and tool == key:
                 btn.setStyleSheet(
-
                     "color:white;font-size:18px;"
                     "background:#6cf;"
                     "border:2px solid #39f;"
@@ -519,7 +624,7 @@ class DesignerTab(QWidget):
             self._js("if (pyObj && pyObj.setStrokeWidth) pyObj.setStrokeWidth(canvas.freeDrawingBrush.width);")
         elif tool == 'rect':
             self._js("EditorAPI.newRect();")
-            self.set_tool('select')  # <-- Highlight select after action
+            self.set_tool('select')
         elif tool == 'circle':
             self._js("EditorAPI.newCircle();")
             self.set_tool('select')
@@ -535,9 +640,231 @@ class DesignerTab(QWidget):
 
     @pyqtSlot(int)
     def setStrokeWidth(self, width):
-        self.stroke_slider.blockSignals(True)
-        self.stroke_slider.setValue(width)
-        self.stroke_width_label.setText(str(width))  # <-- Add this line
-        self.stroke_slider.blockSignals(False)
+        self.stroke_width_spin.blockSignals(True)
+        self.stroke_width_spin.setValue(width)
+        self.stroke_width_spin.blockSignals(False)
 
+    @pyqtSlot()
+    def generate_ai_image(self):
+        model = self.ai_model_combo.currentText()
+        prompt = self.ai_prompt_edit.toPlainText().strip()
+        if not prompt:
+            self._stop_ai_status("Please enter a prompt.")
+            return
 
+        self._start_ai_status("Sent, waiting for response")
+        self.ai_generate_btn.setEnabled(False)
+        self.ai_img_lbl.clear()
+        self.ai_send_canvas_btn.setEnabled(False)
+
+        api_key = ""
+        try:
+            from ..utils.paths import SETTINGS_FILE
+            if os.path.exists(SETTINGS_FILE):
+                with open(SETTINGS_FILE, "r") as f:
+                    settings = json.load(f)
+                api_key = settings.get("pixellab_api_key", "")
+        except Exception:
+            pass
+        if not api_key:
+            self._stop_ai_status("No Pixellab.ai API key set in Settings.")
+            self.ai_generate_btn.setEnabled(True)
+            return
+
+        params = self._collect_pixellab_params(model)
+        self._ai_worker = PixellabWorker(api_key, model, params)
+        self._ai_worker.finished.connect(self._on_ai_image_generated)
+        self._ai_worker.start()
+
+    def send_ai_image_to_canvas(self):
+        import base64
+        if not hasattr(self, "_last_ai_image_bytes"):
+            QMessageBox.warning(self, "No Image", "No AI image to send.")
+            return
+        b64 = base64.b64encode(self._last_ai_image_bytes).decode()
+        self._js(f"EditorAPI.addImageFromDataURL('data:image/png;base64,{b64}');")
+        
+    def _import_image(self):
+        from PyQt5.QtWidgets import QFileDialog
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Image",
+            "",
+            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)"
+        )
+        if not file_path:
+            return
+        with open(file_path, "rb") as f:
+            data = f.read()
+        import base64, mimetypes
+        mime, _ = mimetypes.guess_type(file_path)
+        if not mime:
+            mime = "image/png"
+        b64 = base64.b64encode(data).decode()
+        self._js(f"EditorAPI.addImageFromDataURL('data:{mime};base64,{b64}');")    
+        
+    def _start_ai_status(self, base_text):
+        if not hasattr(self, "_ai_status_timer"):
+            self._ai_status_timer = QTimer(self)
+            self._ai_status_timer.timeout.connect(self._animate_ai_status)
+        self._ai_status_base = base_text
+        self._ai_status_dot_count = 0
+        self.ai_status_lbl.setText(base_text)
+        self._ai_status_timer.start(400)
+
+    def _stop_ai_status(self, final_text):
+        if hasattr(self, "_ai_status_timer"):
+            self._ai_status_timer.stop()
+        self.ai_status_lbl.setText(final_text)
+
+    def _animate_ai_status(self):
+        self._ai_status_dot_count = (self._ai_status_dot_count + 1) % 4
+        dots = '.' * self._ai_status_dot_count
+        self.ai_status_lbl.setText(self._ai_status_base + dots)
+
+    def _on_ai_image_generated(self, img_bytes, error):
+        from PyQt5.QtGui import QPixmap
+        from PyQt5.QtCore import Qt
+        if error:
+            self._stop_ai_status(f"Error: {error}")
+            self.ai_generate_btn.setEnabled(True)
+            return
+        pix = QPixmap()
+        pix.loadFromData(img_bytes)
+        self.ai_img_lbl.setPixmap(pix.scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self._last_ai_image_bytes = img_bytes
+        self._stop_ai_status("Image generated!")
+        self.ai_send_canvas_btn.setEnabled(True)
+        self.ai_generate_btn.setEnabled(True)
+
+    def _collect_pixellab_params(self, model):
+        prompt = self.ai_prompt_edit.toPlainText().strip()
+        negative = self.ai_negative_prompt_edit.text().strip()
+        width = self.ai_width_spin.value()
+        height = self.ai_height_spin.value()
+        seed = self.ai_seed_spin.value()
+        scheduler = self.ai_scheduler_combo.currentText().strip()
+        
+        def clean(d):
+            """Remove keys with empty string or None values."""
+            return {k: v for k, v in d.items() if v not in ("", None)}
+
+        if model == "pixflux":
+            params = {
+                "description": prompt,
+                "negative_description": negative,
+                "image_size": {"width": width, "height": height},
+                "seed": seed,
+            }
+            params = clean(params)
+            params["image_size"] = clean(params["image_size"])
+            return params
+        elif model == "bitforge":
+            params = {
+                "description": prompt,
+                "negative_description": negative,
+                "image_size": {"width": width, "height": height},
+                "seed": seed,
+            }
+            params = clean(params)
+            params["image_size"] = clean(params["image_size"])
+            return params
+        elif model == "pixart":
+            params = {
+                "description": prompt,
+                "negative_description": negative,
+                "image_size": {"width": width, "height": height},
+                "seed": seed,
+            }
+            params = clean(params)
+            params["image_size"] = clean(params["image_size"])
+            return params
+        elif model == "stable-diffusion-xl":
+            params = {
+                "prompt": prompt,
+                "negative_prompt": negative,
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "scheduler": scheduler,
+            }
+            return clean(params)
+        elif model == "stable-diffusion-v1-5":
+            params = {
+                "prompt": prompt,
+                "negative_prompt": negative,
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "scheduler": scheduler,
+            }
+            return clean(params)
+        elif model == "stable-diffusion-2-1":
+            params = {
+                "prompt": prompt,
+                "negative_prompt": negative,
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "scheduler": scheduler,
+            }
+            return clean(params)
+        else:
+            raise Exception("Unsupported model")
+
+    def _update_ai_controls(self):
+        model = self.ai_model_combo.currentText()
+        # Update prompt/description label and negative label
+        if model.startswith("stable-diffusion"):
+            self.ai_prompt_label.setText("Prompt:")
+            self.negative_prompt_widget.layout().itemAt(0).widget().setText("Negative Prompt:")
+            self.scheduler_widget.setVisible(True)
+        else:
+            self.ai_prompt_label.setText("Description:")
+            self.negative_prompt_widget.layout().itemAt(0).widget().setText("Negative Description:")
+            self.scheduler_widget.setVisible(False)
+
+        # Set allowed image size ranges
+        if model in ("pixflux", "bitforge", "pixart"):
+            self.ai_width_spin.setRange(32, 400)
+            self.ai_height_spin.setRange(32, 400)
+        else:
+            self.ai_width_spin.setRange(64, 1024)
+            self.ai_height_spin.setRange(64, 1024)
+
+        # Reset to default size
+        self.ai_width_spin.setValue(IMG_SIZE)
+        self.ai_height_spin.setValue(IMG_SIZE)
+        
+class PixellabWorker(QThread):
+    finished = pyqtSignal(object, object)  # (image_bytes, error)
+
+    def __init__(self, api_key, model, params):
+        super().__init__()
+        self.api_key = api_key
+        self.model = model
+        self.params = params
+
+    def run(self):
+        import pixellab
+        import base64
+        try:
+            client = pixellab.Client(secret=self.api_key)
+            if self.model == "pixflux":
+                result = client.generate_image_pixflux(**self.params)
+            elif self.model == "bitforge":
+                result = client.generate_image_bitforge(**self.params)
+            elif self.model == "pixart":
+                result = client.generate_image_pixart(**self.params)
+            elif self.model == "stable-diffusion-xl":
+                result = client.generate_image_sdxl(**self.params)
+            elif self.model == "stable-diffusion-v1-5":
+                result = client.generate_image_sd15(**self.params)
+            elif self.model == "stable-diffusion-2-1":
+                result = client.generate_image_sd21(**self.params)
+            else:
+                raise Exception("Unsupported model")
+            img_bytes = base64.b64decode(result.image.base64)
+            self.finished.emit(img_bytes, None)
+        except Exception as e:
+            self.finished.emit(None, str(e))

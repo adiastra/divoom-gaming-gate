@@ -1,3 +1,6 @@
 PyQt5
 Pillow
 requests
+toml
+appdirs
+pixellab

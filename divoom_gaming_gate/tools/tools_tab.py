@@ -374,7 +374,7 @@ class ToolsTab(QWidget):
             pass
 
     def import_banner_image(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Banner Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(self, "Select Banner Image", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)")
         if path:
             img = Image.open(path).convert("RGB")
             self.loaded_banner = img

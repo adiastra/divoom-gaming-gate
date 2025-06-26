@@ -481,7 +481,7 @@ class CharacterControl(QWidget):
         requests.post(f"http://{DEVICE_IP}/post", json=payload)
 
     def load_background(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Background Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(self, "Select Background Image", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)")
         if path:
             ext = os.path.splitext(path)[1]
             dest = os.path.join(CHARACTER_DIR, f"bg_slot_{self.slot}{ext}")
