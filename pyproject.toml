@@ -11,8 +11,8 @@ dependencies = [
     "Pillow",
     "requests",
     "toml",
-    "appdirs"
-    "pixellab"
+    "appdirs",
+    "pixellab",
 ]
 license = "GPL-3.0-or-later"
 
