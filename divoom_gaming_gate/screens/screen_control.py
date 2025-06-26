@@ -314,6 +314,10 @@ class GifBridge(QObject):
         self.dialog.selected_url = url
         self.dialog.accept()
 
+    @pyqtSlot()
+    def loadMore(self):
+        self.dialog.load_more_images()
+
 class GifBrowserDialog(QDialog):
     def __init__(self, parent=None, api_key=None, tenor_filter="medium"):
         super().__init__(parent)
@@ -338,19 +342,7 @@ class GifBrowserDialog(QDialog):
         self.results = QWebEngineView()
         layout.addWidget(self.results)
 
-        # --- Add navigation buttons here ---
-        nav_row = QHBoxLayout()
-        self.prev_btn = QPushButton("Previous")
-        self.prev_btn.clicked.connect(self.load_previous_page)
-        self.prev_btn.setEnabled(False)
-        nav_row.addWidget(self.prev_btn)
-
-        self.next_btn = QPushButton("Next")
-        self.next_btn.clicked.connect(self.load_next_page)
-        self.next_btn.setEnabled(False)
-        nav_row.addWidget(self.next_btn)
-        layout.addLayout(nav_row)
-        # --- End navigation buttons ---
+        # Remove navigation buttons for infinite scroll
 
         # Set initial dark background
         initial_html = """
@@ -390,7 +382,7 @@ class GifBrowserDialog(QDialog):
         self.current_pos = None
         self.search_timer.start(400)
 
-    def do_search(self, pos=None):
+    def do_search(self, pos=None, append=False):
         api_key = self.api_key
         tenor_filter = self.tenor_filter
         q = self.search_edit.text().strip()
@@ -403,56 +395,78 @@ class GifBrowserDialog(QDialog):
             resp = requests.get(url, timeout=8)
             resp.raise_for_status()
             data = resp.json()
-            html = """
-            <html>
-              <head>
-                <style>
-                  body { background: #232323; }
-                  td { padding: 6px; }
-                </style>
-                <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-                <script>
-                  var pyBridge = null;
-                  new QWebChannel(qt.webChannelTransport, function(channel) {
-                    pyBridge = channel.objects.pyBridge;
-                  });
-                  function selectGif(url) {
-                    if (pyBridge) pyBridge.gifSelected(url);
-                  }
-                </script>
-              </head>
-              <body>
-                <table ><tr>
-            """
+            # Build <tr>...</tr> rows for every 4 GIFs
+            rows = []
+            row = ""
             for i, result in enumerate(data["results"]):
                 gif_url = result["media_formats"]["gif"]["url"]
-                html += f'<td><img src="{gif_url}" width="100" height="100" onclick="selectGif(\'{gif_url}\')"></td>'
+                row += f'<td><img src="{gif_url}" width="100" height="100" onclick="selectGif(\'{gif_url}\')"></td>'
                 if (i+1) % 4 == 0:
-                    html += "</tr><tr>"
-            html += "</tr></table></body></html>"
-            self.results.setHtml(html)
+                    rows.append(f"<tr>{row}</tr>")
+                    row = ""
+            if row:  # Any remaining GIFs
+                rows.append(f"<tr>{row}</tr>")
+            rows_html = "".join(rows)
+
+            # Track if more results are available
+            more_results = data.get("next", None) is not None
+
+            if append:
+                js = f"""
+                var tbl = document.querySelector('table');
+                var html = `{rows_html}`;
+                tbl.insertAdjacentHTML('beforeend', html);
+                window._tenorHasMore = {str(more_results).lower()};
+                """
+                self.results.page().runJavaScript(js)
+            else:
+                html = f"""
+                <html>
+                  <head>
+                    <style>
+                      body {{ background: #232323; }}
+                      td {{ padding: 6px; }}
+                    </style>
+                    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+                    <script>
+                      var pyBridge = null;
+                      var _tenorHasMore = {str(more_results).lower()};
+                      new QWebChannel(qt.webChannelTransport, function(channel) {{
+                        pyBridge = channel.objects.pyBridge;
+                      }});
+
+                      function selectGif(url) {{
+                        if (pyBridge) pyBridge.gifSelected(url);
+                      }}
+
+                      window.onscroll = function() {{
+                        if (_tenorHasMore && (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {{
+                          // Reached bottom
+                          if (pyBridge && pyBridge.loadMore) pyBridge.loadMore();
+                        }}
+                      }};
+                    </script>
+                  </head>
+                  <body>
+                    <table>
+                      {rows_html}
+                    </table>
+                  </body>
+                </html>
+                """
+                self.results.setHtml(html)
 
             # --- Fix: Always track previous positions, including first page ---
             if not self.prev_stack or self.prev_stack[-1] != pos:
                 self.prev_stack.append(pos)
             self.current_query = q
             self.current_pos = data.get("next", None)
-            self.next_btn.setEnabled(self.current_pos is not None)
-            self.prev_btn.setEnabled(len(self.prev_stack) > 1)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to search Tenor:\n{e}")
 
     def use_selected(self):
-        # This method is not used with QWebEngineView, but keep for compatibility
         pass
 
-    def load_next_page(self):
+    def load_more_images(self):
         if self.current_pos:
-            self.do_search(self.current_pos)
-
-    def load_previous_page(self):
-        if len(self.prev_stack) > 1:
-            # Remove current pos
-            self.prev_stack.pop()
-            prev_pos = self.prev_stack[-1]
-            self.do_search(prev_pos)
+            self.do_search(self.current_pos, append=True)
