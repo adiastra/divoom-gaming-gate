@@ -432,10 +432,10 @@ class GifBrowserDialog(QDialog):
             html += "</tr></table></body></html>"
             self.results.setHtml(html)
 
-            # Handle paging
-            self.current_query = q
-            if pos and pos not in self.prev_stack:
+            # --- Fix: Always track previous positions, including first page ---
+            if not self.prev_stack or self.prev_stack[-1] != pos:
                 self.prev_stack.append(pos)
+            self.current_query = q
             self.current_pos = data.get("next", None)
             self.next_btn.setEnabled(self.current_pos is not None)
             self.prev_btn.setEnabled(len(self.prev_stack) > 1)
