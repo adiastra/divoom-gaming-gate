@@ -12,6 +12,7 @@ dependencies = [
     "requests",
     "toml",
     "appdirs"
+    "pixellab"
 ]
 license = "GPL-3.0-or-later"
 
