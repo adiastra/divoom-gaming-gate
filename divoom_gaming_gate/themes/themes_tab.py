@@ -127,8 +127,14 @@ class ThemesTab(QWidget):
             # --- Theme frame (box) ---
             theme_frame = QFrame()
             theme_frame.setFrameShape(QFrame.Box)
-            theme_frame.setLineWidth(1)
-            theme_frame.setStyleSheet("QFrame { border: 1.5px solid #555; border-radius: 8px; background: #232323; }")
+            theme_frame.setLineWidth(2)
+            theme_frame.setStyleSheet("""
+                QFrame {
+                    border: none;
+                    border-radius: 12px;
+                    background: #232323;
+                }
+            """)
             theme_vbox = QVBoxLayout(theme_frame)
             theme_vbox.setSpacing(4)
             theme_vbox.setContentsMargins(8, 8, 8, 8)
@@ -136,9 +142,8 @@ class ThemesTab(QWidget):
             # Top row: send (left), name (center), delete (right)
             top_row = QHBoxLayout()
             send_btn = QToolButton()
-            send_btn.setText('📤')
+            send_btn.setText('Send to Screens 📤')
             send_btn.setToolTip("Send to Screens")
-            send_btn.setFixedSize(28, 28)
             send_btn.clicked.connect(lambda _, t=theme: self.send_theme(t))
             top_row.addWidget(send_btn, alignment=Qt.AlignLeft)
 
@@ -155,9 +160,7 @@ class ThemesTab(QWidget):
             top_row.addWidget(name_label, alignment=Qt.AlignHCenter)
             top_row.addStretch()
 
-            del_btn = QPushButton("X")
-            del_btn.setFixedSize(20, 20)
-            del_btn.setStyleSheet("color: red; font-weight: bold;")
+            del_btn = QPushButton("Delete Theme")
             del_btn.clicked.connect(lambda _, f=theme["__file"]: self.delete_theme(f))
             top_row.addWidget(del_btn, alignment=Qt.AlignRight)
 
@@ -185,10 +188,25 @@ class ThemesTab(QWidget):
 
             theme_frame.setFixedWidth(400)
 
-            # --- Wrap the theme_frame in a ThemeWidget ---
+            # --- Wrap in ThemeWidget for hover effect ---
             theme_widget = ThemeWidget(theme, preview_labels)
-            theme_widget.setLayout(theme_vbox)
-            theme_widget.setFixedWidth(400)
+            theme_widget.setObjectName("themeCard")
+            theme_widget.setStyleSheet("""
+                #themeCard {
+                    border: 1px solid #aaa;
+                    border-radius: 12px;
+                    background: transparent;
+                }
+                #themeCard:hover {
+                    border: 1.5px solid #fff;
+                    background: #282828;
+                }
+            """)
+            theme_layout = QVBoxLayout(theme_widget)
+            theme_layout.setContentsMargins(0, 0, 0, 0)
+            theme_layout.setSpacing(0)
+            theme_layout.addWidget(theme_frame)
+
             self.themes_grid.addWidget(theme_widget, row, col, alignment=Qt.AlignTop | Qt.AlignHCenter)
 
         self.themes_grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)

@@ -539,7 +539,7 @@ class DesignerTab(QWidget):
 
     @pyqtSlot(str)
     def selectionChanged(self, obj_type):
-        print("selectionChanged called with:", obj_type)
+        # print("selectionChanged called with:", obj_type)
         is_text = obj_type == 'text'
         self.font_label.setVisible(is_text)
         self.font_combo.setVisible(is_text)

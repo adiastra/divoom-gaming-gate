@@ -211,12 +211,12 @@ class CharacterControl(QWidget):
         self.send_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Background button
-        self.bg_btn = QPushButton("Load Background")
+        self.bg_btn = QPushButton("Add Background")
         self.bg_btn.clicked.connect(self.load_background)
         self.bg_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Load button
-        self.load_btn = QPushButton("Load Character")
+        self.load_btn = QPushButton("Load")
         self.load_btn.clicked.connect(self.load_character_dialog)
         self.load_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
@@ -226,23 +226,52 @@ class CharacterControl(QWidget):
         self.save_btn.setStyleSheet("QPushButton:hover { background: #222; }")
 
         # Save as Preset button
-        self.save_preset_btn = QPushButton("Save as Preset")
+        self.save_preset_btn = QPushButton("Save Preset")
         self.save_preset_btn.clicked.connect(self.save_as_preset)
         self.save_preset_btn.setStyleSheet("QPushButton:hover { background: #222; }")
+
+        # --- Stats Section ---
+        stats_btn_row = QHBoxLayout()
+        stats_btn_row.setSpacing(self.style().layoutSpacing(
+            QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+        ))
+        stats_btn_row.addWidget(self.add_stat_btn)
+        stats_btn_row.addWidget(self.save_preset_btn)
+
+        # --- Character Section ---
+        char_btn_row = QHBoxLayout()
+        char_btn_row.setSpacing(self.style().layoutSpacing(
+            QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+        ))
+        char_btn_row.addWidget(self.load_btn)
+        char_btn_row.addWidget(self.save_btn)
+
+        # --- Background Section ---
+        bg_btn_row = QHBoxLayout()
+        bg_btn_row.setSpacing(self.style().layoutSpacing(
+            QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+        ))
+        bg_btn_row.addWidget(self.bg_btn)
+
+        # --- Action Section ---
+        action_btn_row = QHBoxLayout()
+        action_btn_row.setSpacing(self.style().layoutSpacing(
+            QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+        ))
+        action_btn_row.addWidget(self.send_btn)
 
         # Main layout
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignTop)
+        layout.setSpacing(2)  
         layout.addWidget(self.system_box)
         layout.addWidget(self.name_edit)
         layout.addLayout(pv_box)
         layout.addLayout(self.stat_layout)
-        layout.addWidget(self.add_stat_btn)
-        layout.addWidget(self.send_btn)
-        layout.addWidget(self.bg_btn)
-        layout.addWidget(self.load_btn)
-        layout.addWidget(self.save_btn)
-        layout.addWidget(self.save_preset_btn)
+        layout.addLayout(stats_btn_row)
+        layout.addLayout(char_btn_row)
+        layout.addLayout(bg_btn_row)
+        layout.addLayout(action_btn_row)
         self.setLayout(layout)
 
         self.load_character()
