@@ -6,7 +6,7 @@ from io import BytesIO
 from PIL import Image
 from PIL.ImageQt import toqimage
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QColor
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGroupBox, QLabel, QHBoxLayout, QLineEdit, QSpinBox, QToolButton, QMessageBox,
     QColorDialog, QComboBox, QFileDialog, QPushButton, QSlider, QSizePolicy
@@ -323,23 +323,25 @@ class ToolsTab(QWidget):
         row2.addWidget(self.text_input)
         send_text_layout.addLayout(row2)
 
+        # X and Y
         row3 = QHBoxLayout()
         row3.addWidget(QLabel("X:", styleSheet="color:white"))
         self.text_x = QSpinBox()
-        self.text_x.setRange(0, 128)
-        self.text_x.setValue(0)
+        self.text_x.setRange(0, 64)      # Max X is 64
+        self.text_x.setValue(32)         # Default X is 32 (centered)
         row3.addWidget(self.text_x)
         row3.addWidget(QLabel("Y:", styleSheet="color:white"))
         self.text_y = QSpinBox()
-        self.text_y.setRange(0, 128)
+        self.text_y.setRange(0, 64)      # Max Y is 64
         self.text_y.setValue(40)
         row3.addWidget(self.text_y)
         send_text_layout.addLayout(row3)
 
+        # Direction and Font
         row4 = QHBoxLayout()
         row4.addWidget(QLabel("Direction:", styleSheet="color:white"))
         self.dir_combo = QComboBox()
-        self.dir_combo.addItems(["Left", "Right", "Up", "Down"])
+        self.dir_combo.addItems(["Left", "Right"])  # Only Left(0) and Right(1)
         row4.addWidget(self.dir_combo)
         row4.addWidget(QLabel("Font:", styleSheet="color:white"))
         self.font_spin = QSpinBox()
@@ -348,23 +350,32 @@ class ToolsTab(QWidget):
         row4.addWidget(self.font_spin)
         send_text_layout.addLayout(row4)
 
+        # Width and Speed
         row5 = QHBoxLayout()
         row5.addWidget(QLabel("Width:", styleSheet="color:white"))
         self.text_width = QSpinBox()
-        self.text_width.setRange(1, 128)
-        self.text_width.setValue(56)
+        self.text_width.setRange(1, 64)   # Max width is 64
+        self.text_width.setValue(64)      # Default width is 64
         row5.addWidget(self.text_width)
         row5.addWidget(QLabel("Speed:", styleSheet="color:white"))
-        self.text_speed = QSpinBox()
-        self.text_speed.setRange(1, 100)
-        self.text_speed.setValue(10)
+        self.text_speed = QComboBox()
+        self.text_speed.addItems(["Slow", "Medium", "Fast"])
         row5.addWidget(self.text_speed)
         send_text_layout.addLayout(row5)
 
+        # Color picker and Align
         row6 = QHBoxLayout()
         row6.addWidget(QLabel("Color:", styleSheet="color:white"))
         self.text_color = QLineEdit("#FFFF00")
+        color_btn = QPushButton("Pick")
+        color_btn.setMaximumWidth(40)
+        def pick_color():
+            color = QColorDialog.getColor(QColor(self.text_color.text()), self, "Pick Text Color")
+            if color.isValid():
+                self.text_color.setText(color.name())
+        color_btn.clicked.connect(pick_color)
         row6.addWidget(self.text_color)
+        row6.addWidget(color_btn)
         row6.addWidget(QLabel("Align:", styleSheet="color:white"))
         self.align_combo = QComboBox()
         self.align_combo.addItems(["Left", "Center", "Right"])
@@ -539,21 +550,25 @@ class ToolsTab(QWidget):
         if not text:
             QMessageBox.warning(self, "No Text", "Please enter text to send.")
             return
+        if len(text) >= 512:
+            QMessageBox.warning(self, "Text Too Long", "Text must be less than 512 characters.")
+            return
         lcd_id = self.lcdid_spin.value()
         x = self.text_x.value()
         y = self.text_y.value()
-        dir_map = {"Left": 0, "Right": 1, "Up": 2, "Down": 3}
+        dir_map = {"Left": 0, "Right": 1}
         direction = dir_map[self.dir_combo.currentText()]
         font = self.font_spin.value()
         text_width = self.text_width.value()
-        speed = self.text_speed.value()
+        speed_map = {"Slow": 100, "Medium": 50, "Fast": 1}
+        speed = speed_map[self.text_speed.currentText()]
         color = self.text_color.text().strip() or "#FFFF00"
         align_map = {"Left": 0, "Center": 1, "Right": 2}
         align = align_map[self.align_combo.currentText()]
         payload = {
             "Command": "Draw/SendHttpText",
             "LcdId": lcd_id,
-            "TextId": 4,  # You can make this user-settable if needed
+            "TextId": 4,
             "x": x,
             "y": y,
             "dir": direction,
