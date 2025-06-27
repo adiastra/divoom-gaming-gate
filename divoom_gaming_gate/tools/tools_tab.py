@@ -299,6 +299,84 @@ class ToolsTab(QWidget):
         main_layout.addWidget(banner_group, alignment=Qt.AlignTop | Qt.AlignLeft)
         main_layout.addStretch()
 
+        # --- Send Text Tool Group Box ---
+        send_text_group = QGroupBox("Send Text to Screen")
+        send_text_group.setStyleSheet(
+            "QGroupBox { color: white; font-size: 14px; border: 1px inset #666; border-radius: 6px; margin-top: 8px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }"
+        )
+        send_text_layout = QVBoxLayout(send_text_group)
+        send_text_layout.setContentsMargins(8, 8, 8, 8)
+        send_text_layout.setSpacing(8)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Screen (LcdId):", styleSheet="color:white"))
+        self.lcdid_spin = QSpinBox()
+        self.lcdid_spin.setRange(0, 4)  # 0-4 for 5 screens
+        self.lcdid_spin.setValue(0)
+        row.addWidget(self.lcdid_spin)
+        send_text_layout.addLayout(row)
+
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel("Text:", styleSheet="color:white"))
+        self.text_input = QLineEdit()
+        row2.addWidget(self.text_input)
+        send_text_layout.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        row3.addWidget(QLabel("X:", styleSheet="color:white"))
+        self.text_x = QSpinBox()
+        self.text_x.setRange(0, 128)
+        self.text_x.setValue(0)
+        row3.addWidget(self.text_x)
+        row3.addWidget(QLabel("Y:", styleSheet="color:white"))
+        self.text_y = QSpinBox()
+        self.text_y.setRange(0, 128)
+        self.text_y.setValue(40)
+        row3.addWidget(self.text_y)
+        send_text_layout.addLayout(row3)
+
+        row4 = QHBoxLayout()
+        row4.addWidget(QLabel("Direction:", styleSheet="color:white"))
+        self.dir_combo = QComboBox()
+        self.dir_combo.addItems(["Left", "Right", "Up", "Down"])
+        row4.addWidget(self.dir_combo)
+        row4.addWidget(QLabel("Font:", styleSheet="color:white"))
+        self.font_spin = QSpinBox()
+        self.font_spin.setRange(0, 7)
+        self.font_spin.setValue(4)
+        row4.addWidget(self.font_spin)
+        send_text_layout.addLayout(row4)
+
+        row5 = QHBoxLayout()
+        row5.addWidget(QLabel("Width:", styleSheet="color:white"))
+        self.text_width = QSpinBox()
+        self.text_width.setRange(1, 128)
+        self.text_width.setValue(56)
+        row5.addWidget(self.text_width)
+        row5.addWidget(QLabel("Speed:", styleSheet="color:white"))
+        self.text_speed = QSpinBox()
+        self.text_speed.setRange(1, 100)
+        self.text_speed.setValue(10)
+        row5.addWidget(self.text_speed)
+        send_text_layout.addLayout(row5)
+
+        row6 = QHBoxLayout()
+        row6.addWidget(QLabel("Color:", styleSheet="color:white"))
+        self.text_color = QLineEdit("#FFFF00")
+        row6.addWidget(self.text_color)
+        row6.addWidget(QLabel("Align:", styleSheet="color:white"))
+        self.align_combo = QComboBox()
+        self.align_combo.addItems(["Left", "Center", "Right"])
+        row6.addWidget(self.align_combo)
+        send_text_layout.addLayout(row6)
+
+        send_btn = QPushButton("Send Text")
+        send_btn.clicked.connect(self.send_text_to_screen)
+        send_text_layout.addWidget(send_btn, alignment=Qt.AlignRight)
+
+        main_layout.addWidget(send_text_group, alignment=Qt.AlignTop | Qt.AlignLeft)
+
     def send_scoreboard(self):
         ip = self.cfg.get_device_ip()
         blue = self.blue_score.value()
@@ -452,44 +530,48 @@ class ToolsTab(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, "Send Error", f"Failed to send to screen {i+1}:\n{e}")
 
-    def send_http_text(self):
+    def send_text_to_screen(self):
         ip = self.cfg.get_device_ip()
         if not ip:
+            QMessageBox.warning(self, "No IP", "No device IP set.")
             return
         text = self.text_input.text().strip()
         if not text:
+            QMessageBox.warning(self, "No Text", "Please enter text to send.")
             return
-
-        pos_map = {"Top": 0, "Center": 32, "Bottom": 64}
-        y = pos_map.get(self.pos_combo.currentText(), 0)
-        dir_val = 0 if self.dir_combo.currentText() == "Left" else 1
-        font_val = self.font_spin.value()
-        speed_val = self.speed_spin.value()
-        color_val = self.color_input.text().strip() or "#FFFF00"
-        align_map = {"Left": 1, "Center": 2, "Right": 3}
-        align_val = align_map.get(self.align_combo.currentText(), 2)
-        screen_val = self.screen_spin.value() - 1  # 0-based
-
-        print("Sending to screen index:", screen_val)  # Debug print
-
+        lcd_id = self.lcdid_spin.value()
+        x = self.text_x.value()
+        y = self.text_y.value()
+        dir_map = {"Left": 0, "Right": 1, "Up": 2, "Down": 3}
+        direction = dir_map[self.dir_combo.currentText()]
+        font = self.font_spin.value()
+        text_width = self.text_width.value()
+        speed = self.text_speed.value()
+        color = self.text_color.text().strip() or "#FFFF00"
+        align_map = {"Left": 0, "Center": 1, "Right": 2}
+        align = align_map[self.align_combo.currentText()]
         payload = {
             "Command": "Draw/SendHttpText",
-            "LcdIndex": screen_val,
-            "TextId": 4,
-            "x": 32,
+            "LcdId": lcd_id,
+            "TextId": 4,  # You can make this user-settable if needed
+            "x": x,
             "y": y,
-            "dir": dir_val,
-            "font": font_val,
-            "TextWidth": 64,
-            "speed": speed_val,
+            "dir": direction,
+            "font": font,
+            "TextWidth": text_width,
+            "speed": speed,
             "TextString": text,
-            "color": color_val,
-            "align": align_val
+            "color": color,
+            "align": align
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
-        except Exception:
-            pass
+            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            if resp.ok:
+                QMessageBox.information(self, "Success", f"Text sent to screen {lcd_id+1}.")
+            else:
+                QMessageBox.warning(self, "Send Error", f"Device responded with error: {resp.text}")
+        except Exception as e:
+            QMessageBox.warning(self, "Send Error", f"Failed to send text:\n{e}")
 
     def reset_position_sliders(self):
         # No enable/disable logic, just keep sliders as-is and update preview
