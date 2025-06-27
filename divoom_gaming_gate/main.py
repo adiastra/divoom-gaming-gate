@@ -53,6 +53,7 @@ def show_splash(app):
     painter.drawRect(border_rect)
     painter.end()
     splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    splash.setWindowOpacity(0.0)  # <-- Add this line BEFORE show()
     splash.show()
     splash.raise_()
     splash.activateWindow()
@@ -71,6 +72,17 @@ def fade_out_splash(splash, on_finished=None):
     splash._fade_anim = anim
     anim.start()
 
+def fade_in_splash(splash, on_finished=None):
+    splash.setWindowOpacity(0.0)
+    anim = QPropertyAnimation(splash, b"windowOpacity")
+    anim.setDuration(1000)  # 1 second fade in
+    anim.setStartValue(0.0)
+    anim.setEndValue(1.0)
+    if on_finished:
+        anim.finished.connect(on_finished)
+    splash._fade_in_anim = anim
+    anim.start()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -85,8 +97,10 @@ if __name__ == "__main__":
         window = MainWindow()
         window.resize(1000, 700)
         window.show()
-        # Fade out splash, then finish
         fade_out_splash(splash, lambda: splash.finish(window))
 
-    QTimer.singleShot(3000, start_main)  # Show splash for 3 seconds, then fade out
+    def after_fade_in():
+        QTimer.singleShot(3000, start_main)  # 3 seconds after fade-in
+
+    fade_in_splash(splash, after_fade_in)
     sys.exit(app.exec_())
