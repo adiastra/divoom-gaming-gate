@@ -84,10 +84,9 @@ def fade_in_splash(splash, on_finished=None):
     anim.start()
 
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Gaming Gate")
-    # Set window icon
     with importlib.resources.path("divoom_gaming_gate", "GamingGate.ico") as icon_path:
         app.setWindowIcon(QIcon(str(icon_path)))
     splash = show_splash(app)
@@ -100,7 +99,10 @@ if __name__ == "__main__":
         fade_out_splash(splash, lambda: splash.finish(window))
 
     def after_fade_in():
-        QTimer.singleShot(3000, start_main)  # 3 seconds after fade-in
+        QTimer.singleShot(3000, start_main)
 
     fade_in_splash(splash, after_fade_in)
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
