@@ -23,6 +23,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install briefcase toml
 
+      - name: Ensure WiX license file exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "LICENSE.rtf")) {
+            @"
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\f0\fs20 Divoom Gaming Gate
+\par
+License: GPL-3.0-or-later
+\par
+See project repository for full license text.
+}
+"@ | Set-Content -Path "LICENSE.rtf" -Encoding ASCII
+          }
+
       - name: Build Windows app
         run: |
           briefcase create windows
