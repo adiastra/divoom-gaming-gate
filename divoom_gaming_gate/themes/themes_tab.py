@@ -5,12 +5,13 @@ import os
 import json
 import base64
 import tempfile
-import requests
 import io
 import time
 from PIL import Image, ImageSequence
 
 from divoom_gaming_gate.utils.paths import THEMES_DIR
+from divoom_gaming_gate.utils.constants import SCREEN_COUNT, IMG_SIZE, DEFAULT_SPEED, DEFAULT_QUALITY
+from divoom_gaming_gate.utils.device_api import post_device_command
 
 class AnimatedLabel(QLabel):
     """A QLabel that can show a static image or an animated GIF from bytes."""
@@ -212,15 +213,10 @@ class ThemesTab(QWidget):
         self.themes_grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
     def send_theme(self, theme):
+        """Send all saved theme screens to the device."""
         from divoom_gaming_gate.utils.config import Config
-        import requests, io, base64, time
+        import io, base64, time
         from PIL import Image, ImageSequence
-
-        # These should match your screen_control.py constants
-        SCREEN_COUNT = 5
-        IMG_SIZE = 128
-        DEFAULT_SPEED = 100
-        DEFAULT_QUALITY = 85
 
         DEVICE_IP = Config.get_device_ip()
         if not DEVICE_IP or DEVICE_IP.strip() == "":
@@ -261,7 +257,7 @@ class ThemesTab(QWidget):
                     "PicData":   b64
                 }
                 try:
-                    requests.post(f"http://{DEVICE_IP}/post", json=payload, timeout=2)
+                    post_device_command(payload, ip=DEVICE_IP, timeout=2)
                     time.sleep(0.2)  # match per-frame delay
                 except Exception as e:
                     from PyQt5.QtWidgets import QMessageBox

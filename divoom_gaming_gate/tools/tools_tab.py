@@ -1,4 +1,3 @@
-import requests
 import os
 import base64
 import time
@@ -12,6 +11,8 @@ from PyQt5.QtWidgets import (
     QColorDialog, QComboBox, QFileDialog, QPushButton, QSlider, QSizePolicy
 )
 from ..utils.config import Config
+from ..utils.constants import SCREEN_COUNT, IMG_SIZE, DEFAULT_QUALITY, DEFAULT_SPEED
+from ..utils.device_api import post_device_command
 
 def pil_to_qimage(img):
     """Convert PIL Image to QImage (works with Pillow 10+)"""
@@ -389,6 +390,7 @@ class ToolsTab(QWidget):
         main_layout.addWidget(send_text_group, alignment=Qt.AlignTop | Qt.AlignLeft)
 
     def send_scoreboard(self):
+        """Send current red/blue scoreboard values to the device."""
         ip = self.cfg.get_device_ip()
         blue = self.blue_score.value()
         red = self.red_score.value()
@@ -400,11 +402,12 @@ class ToolsTab(QWidget):
             "RedScore": red
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            post_device_command(payload, ip=ip, timeout=8)
         except Exception:
             pass
 
     def send_countdown(self):
+        """Start countdown timer on the device with selected minutes/seconds."""
         ip = self.cfg.get_device_ip()
         minutes = self.timer_minutes.value()
         seconds = self.timer_seconds.value()
@@ -417,11 +420,12 @@ class ToolsTab(QWidget):
             "Status": 1  # 1 = start, 0 = stop
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            post_device_command(payload, ip=ip, timeout=8)
         except Exception:
             pass
 
     def send_stopwatch(self, status):
+        """Send stopwatch status command (start/stop/reset) to the device."""
         ip = self.cfg.get_device_ip()
         if not ip:
             return
@@ -430,11 +434,12 @@ class ToolsTab(QWidget):
             "Status": status  # 2:reset; 1: start; 0: stop
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            post_device_command(payload, ip=ip, timeout=8)
         except Exception:
             pass
 
     def send_buzzer(self):
+        """Play buzzer on the device with configured cycle settings."""
         ip = self.cfg.get_device_ip()
         if not ip:
             return
@@ -445,11 +450,12 @@ class ToolsTab(QWidget):
             "PlayTotalTime": self.buzzer_total.value()
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            post_device_command(payload, ip=ip, timeout=8)
         except Exception:
             pass
 
     def send_noise(self, status):
+        """Start or stop the device noise meter mode."""
         ip = self.cfg.get_device_ip()
         if not ip:
             return
@@ -458,7 +464,7 @@ class ToolsTab(QWidget):
             "NoiseStatus": status  # 1 = start, 0 = stop
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            post_device_command(payload, ip=ip, timeout=8)
         except Exception:
             pass
 
@@ -511,6 +517,7 @@ class ToolsTab(QWidget):
         self.banner_label.setPixmap(QPixmap.fromImage(qimg))
 
     def send_banner_to_screens(self):
+        """Split the prepared banner into five tiles and send each tile."""
         if not self.banner_preview:
             QMessageBox.warning(self, "No Image", "Please import and preview a banner image first.")
             return
@@ -521,27 +528,28 @@ class ToolsTab(QWidget):
             return
 
         # Split into 5 sections and send
-        for i in range(5):
-            section = self.banner_preview.crop((i*128, 0, (i+1)*128, 128))
+        for i in range(SCREEN_COUNT):
+            section = self.banner_preview.crop((i * IMG_SIZE, 0, (i + 1) * IMG_SIZE, IMG_SIZE))
             buf = BytesIO()
-            section.save(buf, format="JPEG", quality=85)
+            section.save(buf, format="JPEG", quality=DEFAULT_QUALITY)
             b64 = base64.b64encode(buf.getvalue()).decode()
             payload = {
                 "Command": "Draw/SendHttpGif",
-                "LcdArray": [1 if j == i else 0 for j in range(5)],
+                "LcdArray": [1 if j == i else 0 for j in range(SCREEN_COUNT)],
                 "PicNum": 1,
                 "PicOffset": 0,
                 "PicID": int(time.time()) + i,
-                "PicSpeed": 100,
-                "PicWidth": 128,
+                "PicSpeed": DEFAULT_SPEED,
+                "PicWidth": IMG_SIZE,
                 "PicData": b64
             }
             try:
-                requests.post(f"http://{ip}/post", json=payload, timeout=8)
+                post_device_command(payload, ip=ip, timeout=8)
             except Exception as e:
                 QMessageBox.warning(self, "Send Error", f"Failed to send to screen {i+1}:\n{e}")
 
     def send_text_to_screen(self):
+        """Send scrolling text payload to a selected screen."""
         ip = self.cfg.get_device_ip()
         if not ip:
             QMessageBox.warning(self, "No IP", "No device IP set.")
@@ -580,7 +588,7 @@ class ToolsTab(QWidget):
             "align": align
         }
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=8)
+            resp = post_device_command(payload, ip=ip, timeout=8)
             if resp.ok:
                 QMessageBox.information(self, "Success", f"Text sent to screen {lcd_id+1}.")
             else:

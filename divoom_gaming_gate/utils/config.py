@@ -1,9 +1,11 @@
 # utils/config.py
 
-import json, os
+import json
+import os
+from .paths import SETTINGS_FILE as USER_SETTINGS_FILE
 
 class Config:
-    SETTINGS_FILE = os.path.join(os.path.dirname(__file__), '..', 'settings', 'settings.json')
+    SETTINGS_FILE = USER_SETTINGS_FILE
 
     @staticmethod
     def get_device_ip():

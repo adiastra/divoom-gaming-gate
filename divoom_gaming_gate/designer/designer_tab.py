@@ -1,6 +1,6 @@
-import os, json, base64, io, requests
+import os, json, base64, io
 from PIL import Image
-from PyQt5.QtCore import Qt, QUrl, pyqtSlot, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QUrl, pyqtSlot, QTimer, QThread, pyqtSignal, QObject
 from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QLabel,
@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
 from ..utils.config import Config
+from ..utils.device_api import post_device_command
 import importlib.resources
 import pixellab 
 import random
@@ -16,6 +17,31 @@ import random
 IMG_SIZE      = 128
 SCREEN_COUNT  = 5
 CANVAS_PIX    = IMG_SIZE * 4  # 4× zoomed canvas
+
+class DesignerBridge(QObject):
+    def __init__(self, tab):
+        super().__init__(tab)
+        self.tab = tab
+
+    @pyqtSlot(str)
+    def selectionChanged(self, obj_type):
+        self.tab.selectionChanged(obj_type)
+
+    @pyqtSlot()
+    def highlightPlay(self):
+        self.tab.highlightPlay()
+
+    @pyqtSlot()
+    def unhighlightPlay(self):
+        self.tab.unhighlightPlay()
+
+    @pyqtSlot(int, int)
+    def updateFrameLabel(self, current, total):
+        self.tab.updateFrameLabel(current, total)
+
+    @pyqtSlot(int)
+    def setStrokeWidth(self, width):
+        self.tab.setStrokeWidth(width)
 
 class DesignerTab(QWidget):
     def __init__(self, parent=None):
@@ -123,7 +149,8 @@ class DesignerTab(QWidget):
         self.view.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         html = os.path.join(os.path.dirname(__file__), "editor.html")
         self.channel = QWebChannel()
-        self.channel.registerObject('pyObj', self)
+        self.bridge = DesignerBridge(self)
+        self.channel.registerObject('pyObj', self.bridge)
         self.view.page().setWebChannel(self.channel)
         with importlib.resources.path("divoom_gaming_gate.designer", "editor.html") as html_path:
             self.view.load(QUrl.fromLocalFile(str(html_path)))
@@ -457,6 +484,7 @@ class DesignerTab(QWidget):
     def _set_font_size  (self,s ): self._js(f"var o=canvas.getActiveObject();if(o){{o.set('fontSize',{s});canvas.renderAll();}}")
 
     def _send(self):
+        """Export all editor frames and send them as a device animation."""
         import time
         ip = self.cfg.get_device_ip()
         if not ip:
@@ -498,7 +526,7 @@ class DesignerTab(QWidget):
                         "PicWidth": IMG_SIZE,
                         "PicData":  b64_jpg
                     }
-                    requests.post(f"http://{ip}/post", json=payload, timeout=8)
+                    post_device_command(payload, ip=ip, timeout=8)
 
                 QMessageBox.information(
                     self, "Send",

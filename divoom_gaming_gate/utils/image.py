@@ -1,19 +1,58 @@
 from PIL import Image, ImageDraw, ImageFont
+import os
 
 def compose_character_image(background, portrait, name, stats):
-    img = Image.new('RGB',(128,128),'black')
-    draw = ImageDraw.Draw(img)
-    total_lines = len(stats) + 3
-    line_h = 12; pad = 5; box_h = total_lines*line_h + pad*2
-    overlay = Image.new('RGBA',(128,128),(0,0,0,0))
-    do = ImageDraw.Draw(overlay)
-    do.rectangle([(0,128-box_h),(128,128)],fill=(50,50,50,200))
-    img = Image.alpha_composite(img.convert('RGBA'),overlay).convert('RGB')
-    draw = ImageDraw.Draw(img); font=ImageFont.load_default()
-    bbox=draw.textbbox((0,0),name,font=font); w=bbox[2]-bbox[0]
-    draw.text(((128-w)/2,pad),name,font=font,fill=(255,255,255,255))
-    y=128-box_h+pad
-    for stat,val in stats.items(): draw.text((5,y),f"{stat}: {val}",font=font,fill=(255,255,255,255)); y+=line_h
-    draw.text((5,y),f"Wound: {stats.get('Brawn',0)+10}",font=font,fill=(255,200,0,255)); y+=line_h
-    draw.text((5,y),f"Strain: {stats.get('Willpower',0)+10}",font=font,fill=(255,200,0,255))
-    return img
+    if background and os.path.exists(background):
+        bg = Image.open(background).convert("RGB").resize((128, 128))
+    else:
+        bg = Image.new("RGB", (128, 128), (0, 0, 0))
+
+    draw = ImageDraw.Draw(bg, "RGBA")
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except Exception:
+        font = ImageFont.load_default()
+
+    name_box_height = 22
+    draw.rectangle([0, 0, 128, name_box_height], fill=(40, 40, 40, 180))
+    try:
+        bbox = draw.textbbox((0, 0), name, font=font)
+        text_w = bbox[2] - bbox[0]
+    except AttributeError:
+        text_w, _ = font.getsize(name)
+    draw.text(((128 - text_w) // 2, 4), name, fill=(255, 255, 255), font=font)
+
+    stat_keys = list(stats.keys())
+    midpoint = (len(stat_keys) + 1) // 2
+    left_stats = stat_keys[:midpoint]
+    right_stats = stat_keys[midpoint:]
+
+    stat_box_top = name_box_height + 2
+    stat_box_height = max(len(left_stats), len(right_stats)) * 16 + 4
+    draw.rectangle([0, stat_box_top, 128, stat_box_top + stat_box_height], fill=(40, 40, 40, 180))
+
+    for col, stat_list in enumerate([left_stats, right_stats]):
+        for i, key in enumerate(stat_list):
+            y = stat_box_top + 2 + i * 16
+            x = 6 if col == 0 else 68
+            stat_value = stats[key] if isinstance(stats[key], dict) else {"base": stats[key]}
+            base = str(stat_value.get("base", ""))
+            current = str(stat_value.get("current", ""))
+            modifier = str(stat_value.get("modifier", ""))
+
+            draw.text((x, y), f"{key}: ", fill=(200, 200, 200), font=font)
+            x_offset = x + draw.textlength(f"{key}: ", font=font)
+            draw.text((x_offset, y), base, fill=(255, 255, 255), font=font)
+            x_offset += draw.textlength(base, font=font)
+
+            if current:
+                draw.text((x_offset, y), f" / {current}", fill=(200, 200, 200), font=font)
+                x_offset += draw.textlength(f" / {current}", font=font)
+            if modifier:
+                color = (200, 200, 200)
+                if modifier.startswith("+"):
+                    color = (0, 200, 0)
+                elif modifier.startswith("-"):
+                    color = (220, 0, 0)
+                draw.text((x_offset, y), f" ({modifier})", fill=color, font=font)
+    return bg

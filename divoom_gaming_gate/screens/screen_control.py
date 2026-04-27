@@ -17,12 +17,10 @@ from ..utils.paths import SETTINGS_FILE
 
 # IP from config
 from ..utils.config import Config
+from ..utils.device_api import post_device_command
 DEVICE_IP = Config.get_device_ip()
 
-SCREEN_COUNT    = 5
-IMG_SIZE        = 128
-DEFAULT_SPEED   = 100
-DEFAULT_QUALITY = 85
+from ..utils.constants import SCREEN_COUNT, IMG_SIZE, DEFAULT_SPEED, DEFAULT_QUALITY
 MAX_SKIP        = 10
 
 def get_tenor_api_key():
@@ -211,6 +209,7 @@ class ScreenControl(QWidget):
         self.preview.setPixmap(QPixmap.fromImage(qimg))
 
     def send_to_screen(self):
+        """Send the current frame set to this screen slot on the device."""
         # Refresh IP
         global DEVICE_IP
         DEVICE_IP = Config.get_device_ip()
@@ -243,7 +242,7 @@ class ScreenControl(QWidget):
                 "PicData":   b64
             }
             try:
-                requests.post(f"http://{DEVICE_IP}/post", json=payload)
+                post_device_command(payload, ip=DEVICE_IP, timeout=8)
             except Exception as e:
                 QMessageBox.warning(self, "Network Error", f"Failed to send to device:\n{e}")
                 break
@@ -465,7 +464,10 @@ class GifBrowserDialog(QDialog):
             QMessageBox.warning(self, "Error", f"Failed to search Tenor:\n{e}")
 
     def use_selected(self):
-        pass
+        if self.selected_url:
+            self.accept()
+        else:
+            QMessageBox.information(self, "Select GIF", "Click a GIF thumbnail to select it.")
 
     def load_more_images(self):
         if self.current_pos:

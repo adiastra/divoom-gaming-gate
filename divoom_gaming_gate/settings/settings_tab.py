@@ -12,6 +12,7 @@ import datetime
 import toml
 
 from divoom_gaming_gate.utils.paths import SETTINGS_FILE
+from divoom_gaming_gate.utils.device_api import post_device_command
 
 from importlib.metadata import version, PackageNotFoundError
 
@@ -64,6 +65,7 @@ class SettingsTab(QWidget):
         self.device_name_label = QLabel("")
         self.device_name_label.setStyleSheet("color: #8ecfff; font-size: 12px; margin-left: 4px;")
         layout.addWidget(self.device_name_label)
+        self.ip_edit.editingFinished.connect(self.save_settings_silent)
 
         # Restore normal spacing for the rest of the controls
         layout.setSpacing(14)
@@ -285,20 +287,33 @@ class SettingsTab(QWidget):
         self.loading_settings = False
 
     def save_settings(self):
-        settings = {
+        settings = self._collect_settings()
+        self._write_settings(settings, show_confirmation=True)
+
+    def save_settings_silent(self):
+        settings = self._collect_settings()
+        self._write_settings(settings, show_confirmation=False)
+
+    def _collect_settings(self):
+        return {
             "device_ip": self.ip_edit.text().strip(),
             "timezone_city": self.tz_combo.currentText(),
             "dst": self.dst_checkbox.isChecked(),
             "hour_mode": self.hour_mode_combo.currentIndex(),
             "tenor_api_key": self.tenor_api_edit.text().strip(),
             "tenor_filter": self.tenor_filter_combo.currentText(),
-            "pixellab_api_key": self.pixellab_api_edit.text().strip()  # <-- Add this line
+            "pixellab_api_key": self.pixellab_api_edit.text().strip()
         }
+
+    def _write_settings(self, settings, show_confirmation):
+        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)
-        QMessageBox.information(self, "Settings", "Settings saved.")
+        if show_confirmation:
+            QMessageBox.information(self, "Settings", "Settings saved.")
 
     def set_brightness(self, value):
+        """Push brightness changes to the device while the slider moves."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -309,11 +324,12 @@ class SettingsTab(QWidget):
             "Brightness": value
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=4)
+            post_device_command(payload, ip=ip, timeout=4)
         except Exception:
             pass  # Silently ignore errors for now
 
     def set_timezone(self):
+        """Apply timezone (and optional DST adjustment) to the device clock."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -345,11 +361,12 @@ class SettingsTab(QWidget):
             "TimeZoneValue": tz_value
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=4)
+            post_device_command(payload, ip=ip, timeout=4)
         except Exception:
             pass  # Silently ignore errors for now
 
     def sync_system_time(self):
+        """Fetch internet UTC and sync that timestamp to the device."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -365,11 +382,12 @@ class SettingsTab(QWidget):
                     "Command": "Device/SetUTC",
                     "Utc": utc_ts
                 }
-                requests.post(f"http://{ip}/post", json=payload, timeout=4)
+                post_device_command(payload, ip=ip, timeout=4)
         except Exception:
             pass  # Silently ignore errors for now
 
     def set_hour_mode(self, index):
+        """Switch device clock between 12-hour and 24-hour display."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -380,7 +398,7 @@ class SettingsTab(QWidget):
             "Mode": index  # 0 for 12-hour, 1 for 24-hour
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=4)
+            post_device_command(payload, ip=ip, timeout=4)
         except Exception:
             pass  # Silently ignore errors for now
 
@@ -459,10 +477,12 @@ class SettingsTab(QWidget):
             name = device.get("DeviceName", "Unknown")
             self.ip_edit.setText(ip)
             self.device_name_label.setText(f"Device: {name}")
+            self.save_settings_silent()
         except Exception as e:
             QMessageBox.warning(self, "Find Device", f"Error: {e}")
 
     def reboot_device(self):
+        """Send reboot command to the currently configured device IP."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -471,7 +491,7 @@ class SettingsTab(QWidget):
             return
         payload = {"Command": "Device/SysReboot"}
         try:
-            resp = requests.post(f"http://{ip}/post", json=payload, timeout=5)
+            resp = post_device_command(payload, ip=ip, timeout=5)
             if resp.ok:
                 QMessageBox.information(self, "Reboot", "Reboot command sent to device.")
             else:
@@ -480,6 +500,7 @@ class SettingsTab(QWidget):
             QMessageBox.warning(self, "Reboot", f"Error: {e}")
 
     def toggle_screens_off(self, value):
+        """Turn all device screens on or off from the Settings toggle."""
         if self.loading_settings:
             return
         ip = self.ip_edit.text().strip()
@@ -491,6 +512,6 @@ class SettingsTab(QWidget):
             "OnOff": value  # 0 = Off, 1 = On
         }
         try:
-            requests.post(f"http://{ip}/post", json=payload, timeout=4)
+            post_device_command(payload, ip=ip, timeout=4)
         except Exception as e:
             QMessageBox.warning(self, "Screens", f"Error: {e}")

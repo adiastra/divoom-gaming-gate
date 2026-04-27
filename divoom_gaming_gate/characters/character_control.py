@@ -1,24 +1,23 @@
 from ..utils.config import Config
-import io, base64, time, requests
+import io, base64, time
 import json
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QSpinBox, QPushButton,
-    QVBoxLayout, QHBoxLayout, QFileDialog, QInputDialog, QComboBox, QSizePolicy
+    QVBoxLayout, QHBoxLayout, QFileDialog, QInputDialog, QComboBox, QSizePolicy, QMessageBox
 )
 from PyQt5.QtGui import QPixmap, QImage, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 from ..utils.image import compose_character_image
 import shutil
 from functools import partial
+from ..utils.constants import SCREEN_COUNT, IMG_SIZE, DEFAULT_QUALITY, DEFAULT_SPEED
+from ..utils.device_api import post_device_command
 
 # IP from config 
 from ..utils.config import Config
 DEVICE_IP = Config.get_device_ip()
-
-SCREEN_COUNT = 5
-IMG_SIZE     = 128
 
 from divoom_gaming_gate.utils.paths import CHARACTER_DIR
 ASSIGNMENTS_FILE = os.path.join(CHARACTER_DIR, "screen_assignments.json")
@@ -54,106 +53,6 @@ def load_assignments():
 def save_assignments(assignments):
     with open(ASSIGNMENTS_FILE, "w") as f:
         json.dump(assignments, f, indent=2)
-def compose_character_image(background_path, portrait_path, name, stats):
-    if background_path and os.path.exists(background_path):
-        bg = Image.open(background_path).convert("RGB").resize((128, 128))
-    else:
-        bg = Image.new("RGB", (128, 128), (0, 0, 0))
-
-    draw = ImageDraw.Draw(bg, "RGBA")
-    try:
-        font = ImageFont.truetype("arial.ttf", 14)
-    except Exception:
-        font = ImageFont.load_default()
-
-    # --- Draw name overlay at the top ---
-    name_box_height = 22
-    draw.rectangle([0, 0, 128, name_box_height], fill=(40, 40, 40, 180))
-    try:
-        bbox = draw.textbbox((0, 0), name, font=font)
-        w = bbox[2] - bbox[0]
-    except AttributeError:
-        w, _ = font.getsize(name)
-    draw.text(((128 - w) // 2, 4), name, fill=(255, 255, 255), font=font)
-
-    # --- Draw stats in two columns ---
-    stat_keys = list(stats.keys())
-    n = len(stat_keys)
-    left_stats = stat_keys[: (n + 1) // 2]
-    right_stats = stat_keys[(n + 1) // 2 :]
-
-    stat_box_top = name_box_height + 2
-    stat_box_height = max(len(left_stats), len(right_stats)) * 16 + 4
-    draw.rectangle([0, stat_box_top, 128, stat_box_top + stat_box_height], fill=(40, 40, 40, 180))
-
-    for col, stat_list in enumerate([left_stats, right_stats]):
-        for i, k in enumerate(stat_list):
-            y = stat_box_top + 2 + i * 16
-            x = 6 if col == 0 else 68  # 68 leaves a gap between columns
-            v = stats[k]
-            base = str(v.get('base', ''))
-            current = str(v.get('current', ''))
-            modifier = str(v.get('modifier', ''))
-            abbr = k  # Use stat key directly
-            try:
-                bold_font = ImageFont.truetype("arialbd.ttf", 14)
-            except Exception:
-                bold_font = font
-            draw.text((x, y), f"{abbr}: ", fill=(200, 200, 200), font=font)
-            x_offset = x + draw.textlength(f"{abbr}: ", font=font)
-            draw.text((x_offset, y), base, fill=(255, 255, 255), font=bold_font)
-            x_offset += draw.textlength(base, font=bold_font)
-            # Draw current if present
-            if current:
-                try:
-                    base_val = float(base)
-                    curr_val = float(current)
-                    if curr_val < base_val:
-                        pct = curr_val / base_val if base_val else 0
-                        if pct >= 0.7:
-                            curr_color = (0, 200, 0)
-                        elif pct >= 0.3:
-                            curr_color = (220, 180, 0)
-                        else:
-                            curr_color = (220, 0, 0)
-                    else:
-                        curr_color = (0, 200, 0)
-                except Exception:
-                    curr_color = (200, 200, 200)
-                draw.text((x_offset, y), f" / {current}", fill=curr_color, font=font)
-                x_offset += draw.textlength(f" / {current}", font=font)
-            # Draw modifier if present
-            if modifier:
-                mod_color = (200, 200, 200)
-                mod_str = modifier.strip()
-                # Try to interpret as a number
-                try:
-                    mod_val = int(mod_str)
-                except ValueError:
-                    try:
-                        mod_val = float(mod_str)
-                    except ValueError:
-                        mod_val = None
-
-                if mod_val is not None:
-                    if mod_val > 0:
-                        mod_color = (0, 200, 0)
-                        mod_str = f"+{mod_val}"  # Always show plus for positive
-                    elif mod_val < 0:
-                        mod_color = (220, 0, 0)
-                        mod_str = f"{mod_val}"
-                    else:
-                        mod_color = (200, 200, 200)
-                        mod_str = f"{mod_val}"
-                else:
-                    # Not a number, fallback to string and color by prefix
-                    if mod_str.startswith('+'):
-                        mod_color = (0, 200, 0)
-                    elif mod_str.startswith('-'):
-                        mod_color = (220, 0, 0)
-                draw.text((x_offset, y), f" ({mod_str})", fill=mod_color, font=font)
-    return bg
-
 class PresetSignalEmitter(QObject):
     presets_updated = pyqtSignal()
 
@@ -389,27 +288,38 @@ class CharacterControl(QWidget):
             self._rebuild_stats_ui()
             self.update_preview()
 
-    def save_character(self):
-        self.char["name"] = self.name_edit.text()
+    def _collect_stats_from_ui(self):
         stats = {}
-        for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
+        for _, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
+            stat_name = name_edit.text()
+            if not stat_name:
+                continue
+
             base = base_edit.text()
             current = current_edit.text()
-            modifier = modifier_edit.text()  # Always get the value, even if hidden
+            modifier = modifier_edit.text()
             stat_dict = {}
+
             try:
                 stat_dict["base"] = int(base)
             except ValueError:
                 stat_dict["base"] = base
+
             if current:
                 try:
                     stat_dict["current"] = int(current)
                 except ValueError:
                     stat_dict["current"] = current
+
             if modifier:
                 stat_dict["modifier"] = modifier
-            stats[name_edit.text()] = stat_dict
-        self.char["stats"] = stats
+
+            stats[stat_name] = stat_dict
+        return stats
+
+    def save_character(self):
+        self.char["name"] = self.name_edit.text()
+        self.char["stats"] = self._collect_stats_from_ui()
         with open(get_character_path(self.char["name"]), "w") as f:
             json.dump(self.char, f, indent=2)
 
@@ -439,24 +349,7 @@ class CharacterControl(QWidget):
         self._rebuild_stats_ui()
 
     def update_preview(self):
-        stats = {}
-        for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
-            base = base_edit.text()
-            current = current_edit.text()
-            modifier = modifier_edit.text()  # Always get the value, even if hidden
-            stat_dict = {}
-            try:
-                stat_dict["base"] = int(base)
-            except ValueError:
-                stat_dict["base"] = base
-            if current:
-                try:
-                    stat_dict["current"] = int(current)
-                except ValueError:
-                    stat_dict["current"] = current
-            if modifier:
-                stat_dict["modifier"] = modifier
-            stats[name_edit.text()] = stat_dict
+        stats = self._collect_stats_from_ui()
         name = self.name_edit.text()
         img = compose_character_image(
             self.char["background"], self.char["portrait"], name, stats
@@ -466,26 +359,18 @@ class CharacterControl(QWidget):
         self.preview.setPixmap(QPixmap.fromImage(qimg))
 
     def send(self):
+        """Render the current character card and send it to this slot."""
         global DEVICE_IP
-        DEVICE_IP = Config.get_device_ip()
+        DEVICE_IP = (Config.get_device_ip() or "").strip()
+        if not DEVICE_IP:
+            QMessageBox.warning(
+                self,
+                "No IP Set",
+                "Please set and save the Divoom device IP in Settings before sending."
+            )
+            return
 
-        stats = {}
-        for stat, (name_edit, base_edit, current_edit, modifier_edit) in self.stat_boxes.items():
-            try:
-                base = int(base_edit.text())
-            except ValueError:
-                base = base_edit.text()
-            try:
-                current = int(current_edit.text())
-            except ValueError:
-                current = current_edit.text()
-            modifier = modifier_edit.text()  # Always get the value, even if hidden
-            stat_dict = {"base": base}
-            if current:
-                stat_dict["current"] = current
-            if modifier:
-                stat_dict["modifier"] = modifier
-            stats[name_edit.text()] = stat_dict
+        stats = self._collect_stats_from_ui()
 
         name  = self.name_edit.text()
         img   = compose_character_image(
@@ -493,7 +378,7 @@ class CharacterControl(QWidget):
         )
 
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85)
+        img.save(buf, format="JPEG", quality=DEFAULT_QUALITY)
         b64 = base64.b64encode(buf.getvalue()).decode()
         pid = int(time.time())
 
@@ -503,11 +388,14 @@ class CharacterControl(QWidget):
             "PicNum":   1,
             "PicOffset":0,
             "PicID":    pid,
-            "PicSpeed": 100,
+            "PicSpeed": DEFAULT_SPEED,
             "PicWidth": IMG_SIZE,
             "PicData":  b64
         }
-        requests.post(f"http://{DEVICE_IP}/post", json=payload)
+        try:
+            post_device_command(payload, ip=DEVICE_IP, timeout=8)
+        except Exception as e:
+            QMessageBox.warning(self, "Network Error", f"Failed to send to device:\n{e}")
 
     def load_background(self):
         path, _ = QFileDialog.getOpenFileName(self, "Select Background Image", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)")
