@@ -30,8 +30,6 @@ jobs:
           briefcase package windows
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.msi
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.msi --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
