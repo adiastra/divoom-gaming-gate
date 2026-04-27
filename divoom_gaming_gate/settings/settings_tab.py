@@ -170,41 +170,40 @@ class SettingsTab(QWidget):
         hour_layout.addWidget(self.hour_mode_combo)
         layout.addLayout(hour_layout)
 
-        # --- Tenor API Key input and link ---
-        tenor_vlayout = QVBoxLayout()
-        tenor_vlayout.setSpacing(0)  # Remove extra space between widgets
+        # --- KLIPY API Key (GIF search) ---
+        klipy_vlayout = QVBoxLayout()
+        klipy_vlayout.setSpacing(0)
 
-        tenor_hlayout = QHBoxLayout()
-        tenor_hlayout.addWidget(QLabel("Tenor API Key:"))
-        self.tenor_api_edit = QLineEdit()
-        self.tenor_api_edit.setPlaceholderText("Enter your Tenor API Key")
-        # Make font smaller and less bright
-        self.tenor_api_edit.setStyleSheet("""
+        klipy_hlayout = QHBoxLayout()
+        klipy_hlayout.addWidget(QLabel("Klipy API Key:"))
+        self.klipy_api_edit = QLineEdit()
+        self.klipy_api_edit.setPlaceholderText("Enter your Klipy API key")
+        self.klipy_api_edit.setStyleSheet("""
             margin-bottom:0px;
             font-size: 12px;
             color: #b0b0b0;
             background: #232323;
         """)
-        tenor_hlayout.addWidget(self.tenor_api_edit)
-        tenor_vlayout.addLayout(tenor_hlayout)
+        klipy_hlayout.addWidget(self.klipy_api_edit)
+        klipy_vlayout.addLayout(klipy_hlayout)
 
-        # Centered link directly under the textbox, no top margin
-        tenor_link = QLabel('<a href="https://developers.google.com/tenor/guides/quickstart">Get a Tenor API Key</a>')
-        tenor_link.setOpenExternalLinks(True)
-        tenor_link.setStyleSheet("color: #8ecfff; font-size: 11px; margin-top:0px;")
-        tenor_link.setAlignment(Qt.AlignHCenter)
-        tenor_vlayout.addWidget(tenor_link)
+        klipy_link = QLabel(
+            '<a href="https://partner.klipy.com/api-keys">Get a Klipy API key</a> '
+        )
+        klipy_link.setOpenExternalLinks(True)
+        klipy_link.setStyleSheet("color: #8ecfff; font-size: 11px; margin-top:0px;")
+        klipy_link.setAlignment(Qt.AlignHCenter)
+        klipy_vlayout.addWidget(klipy_link)
 
-        # --- Tenor Content Filter dropdown ---
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Tenor Content Filter:"))
-        self.tenor_filter_combo = QComboBox()
-        self.tenor_filter_combo.addItems(["off", "low", "medium", "high"])
-        self.tenor_filter_combo.setCurrentText("medium")  # Default
-        filter_layout.addWidget(self.tenor_filter_combo)
-        tenor_vlayout.addLayout(filter_layout)
+        rating_layout = QHBoxLayout()
+        rating_layout.addWidget(QLabel("GIF content rating:"))
+        self.klipy_rating_combo = QComboBox()
+        self.klipy_rating_combo.addItems(["g", "pg", "pg-13", "r"])
+        self.klipy_rating_combo.setCurrentText("pg")
+        rating_layout.addWidget(self.klipy_rating_combo)
+        klipy_vlayout.addLayout(rating_layout)
 
-        layout.addLayout(tenor_vlayout)
+        layout.addLayout(klipy_vlayout)
 
         # --- Pixellab.ai API Key input and link ---
         pixellab_vlayout = QVBoxLayout()
@@ -277,12 +276,20 @@ class SettingsTab(QWidget):
                 self.tz_combo.setCurrentText(city)
             self.dst_checkbox.setChecked(settings.get("dst", False))
             self.hour_mode_combo.setCurrentIndex(settings.get("hour_mode", 0))
-            self.tenor_api_edit.setText(settings.get("tenor_api_key", ""))
-            self.tenor_filter_combo.setCurrentText(settings.get("tenor_filter", "medium"))
+            klipy_key = (settings.get("klipy_api_key") or settings.get("tenor_api_key") or "").strip()
+            self.klipy_api_edit.setText(klipy_key)
+            r = (settings.get("klipy_rating") or "").strip().lower()
+            if r in ("g", "pg", "pg-13", "r"):
+                self.klipy_rating_combo.setCurrentText(r)
+            else:
+                tenor_to_rating = {"off": "g", "low": "g", "medium": "pg", "high": "pg-13"}
+                self.klipy_rating_combo.setCurrentText(
+                    tenor_to_rating.get(settings.get("tenor_filter", "medium"), "pg")
+                )
             self.pixellab_api_edit.setText(settings.get("pixellab_api_key", ""))
         else:
             self.ip_edit.setText("")
-            self.tenor_api_edit.setText("")
+            self.klipy_api_edit.setText("")
             self.pixellab_api_edit.setText("")
         self.loading_settings = False
 
@@ -295,20 +302,29 @@ class SettingsTab(QWidget):
         self._write_settings(settings, show_confirmation=False)
 
     def _collect_settings(self):
+        """Build the settings dict to persist (KLIPY + device + Pixellab)."""
         return {
             "device_ip": self.ip_edit.text().strip(),
             "timezone_city": self.tz_combo.currentText(),
             "dst": self.dst_checkbox.isChecked(),
             "hour_mode": self.hour_mode_combo.currentIndex(),
-            "tenor_api_key": self.tenor_api_edit.text().strip(),
-            "tenor_filter": self.tenor_filter_combo.currentText(),
+            "klipy_api_key": self.klipy_api_edit.text().strip(),
+            "klipy_rating": self.klipy_rating_combo.currentText(),
             "pixellab_api_key": self.pixellab_api_edit.text().strip()
         }
 
     def _write_settings(self, settings, show_confirmation):
+        """Merge into existing JSON, drop deprecated Tenor keys, and write atomically."""
         os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(settings, f, indent=2)
+        merged = {}
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                merged = json.load(f)
+        merged.update(settings)
+        for deprecated in ("tenor_api_key", "tenor_filter"):
+            merged.pop(deprecated, None)
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2)
         if show_confirmation:
             QMessageBox.information(self, "Settings", "Settings saved.")
 

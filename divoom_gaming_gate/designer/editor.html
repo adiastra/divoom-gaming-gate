@@ -413,8 +413,10 @@
     var pyObj = null;
     new QWebChannel(qt.webChannelTransport, function(channel) {
       pyObj = channel.objects.pyObj;
-      // Now it's safe to use pyObj:
-      pyObj.set_tool('select');
+      // Now it's safe to use pyObj (bridge forwards to DesignerTab):
+      if (pyObj && pyObj.set_tool) {
+        pyObj.set_tool('select');
+      }
     });
 
     function sendSelectionType() {

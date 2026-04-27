@@ -1,5 +1,5 @@
 from ..utils.config import Config
-import time, io, base64, requests
+import time, io, base64, json as json_lib, requests
 from PIL import Image, ImageSequence
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
@@ -8,37 +8,15 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QImage, QIcon
 from PyQt5.QtCore import Qt, QTimer, QSize
 from io import BytesIO
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtCore import pyqtSlot, QObject
-import os
-import json
-from ..utils.paths import SETTINGS_FILE
-
-# IP from config
-from ..utils.config import Config
 from ..utils.device_api import post_device_command
+from ..utils.klipy import get_klipy_settings, klipy_search_gifs
 DEVICE_IP = Config.get_device_ip()
 
 from ..utils.constants import SCREEN_COUNT, IMG_SIZE, DEFAULT_SPEED, DEFAULT_QUALITY
 MAX_SKIP        = 10
-
-def get_tenor_api_key():
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, "r") as f:
-            settings = json.load(f)
-        return settings.get("tenor_api_key", "").strip()
-    return ""
-
-def get_tenor_settings():
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, "r") as f:
-            settings = json.load(f)
-        return (
-            settings.get("tenor_api_key", "").strip(),
-            settings.get("tenor_filter", "medium")
-        )
-    return "", "medium"
 
 class ScreenControl(QWidget):
     def __init__(self, screen_index):
@@ -73,7 +51,7 @@ class ScreenControl(QWidget):
 
         self.load_btn = QPushButton("Load")
         self.send_btn = QPushButton("Send")
-        self.gif_browser_btn = QPushButton("Tenor")
+        self.gif_browser_btn = QPushButton("Klipy")
 
         self.load_btn.setStyleSheet("QPushButton:hover { background: #222; }")
         self.send_btn.setStyleSheet("QPushButton:hover { background: #222; }")
@@ -124,11 +102,6 @@ class ScreenControl(QWidget):
         self.load_btn.clicked.connect(self.load_image)
         self.send_btn.clicked.connect(self.send_to_screen)
         self.gif_browser_btn.clicked.connect(self.open_gif_browser)
-
-        # Search state
-        self.current_query = ""
-        self.current_pos = None
-        self.prev_stack = []
 
     def _labeled_row(self, text, widget):
         row = QHBoxLayout()
@@ -248,24 +221,26 @@ class ScreenControl(QWidget):
                 break
 
     def open_gif_browser(self):
-        api_key, tenor_filter = get_tenor_settings()
+        """Open KLIPY GIF search; selected GIF loads into this screen."""
+        api_key, rating = get_klipy_settings()
         if not api_key:
             msg = QMessageBox(self)
-            msg.setWindowTitle("Tenor API Key Required")
-            msg.setText("Go to the Settings tab to add your Tenor API Key.")
-            ok_btn = msg.addButton("OK", QMessageBox.AcceptRole)
+            msg.setWindowTitle("KLIPY API Key Required")
+            msg.setText("Go to the Settings tab and add your KLIPY API key.")
+            msg.addButton("OK", QMessageBox.AcceptRole)
             get_btn = msg.addButton("Get API Key", QMessageBox.ActionRole)
             msg.exec_()
             if msg.clickedButton() == get_btn:
                 import webbrowser
-                webbrowser.open("https://developers.google.com/tenor/guides/quickstart")
+                webbrowser.open("https://partner.klipy.com/api-keys")
             return
 
-        dlg = GifBrowserDialog(self, api_key=api_key, tenor_filter=tenor_filter)
+        dlg = KlipyGifBrowserDialog(self, api_key=api_key, rating=rating)
         if dlg.exec_() == QDialog.Accepted and dlg.selected_url:
             self.load_gif_from_url(dlg.selected_url)
 
     def load_gif_from_url(self, url):
+        """Download a GIF (or image) URL and replace the current screen frames."""
         try:
             resp = requests.get(url, timeout=10)
             resp.raise_for_status()
@@ -274,11 +249,11 @@ class ScreenControl(QWidget):
                 self.raw_frames = [fr.convert("RGB") for fr in ImageSequence.Iterator(img)]
             else:
                 self.raw_frames = [img.convert("RGB")]
-            self.label.setText(f"Loaded {len(self.raw_frames)} frame(s) from Tenor")
+            self.label.setText(f"Loaded {len(self.raw_frames)} frame(s) from Klipy")
             self.apply_mode()
             self._start_animation()
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to load GIF from Tenor:\n{e}")
+            QMessageBox.warning(self, "Error", f"Failed to load GIF from Klipy:\n{e}")
 
     def clear_image(self):
         self.raw_frames = []
@@ -304,41 +279,53 @@ class ScreenControl(QWidget):
 from PyQt5.QtCore import QObject, pyqtSlot
 
 class GifBridge(QObject):
+    """Qt WebChannel bridge so the embedded results page can call back into Python."""
+
     def __init__(self, dialog):
         super().__init__()
         self.dialog = dialog
 
     @pyqtSlot(str)
     def gifSelected(self, url):
+        """Called from JS when the user clicks a GIF thumbnail."""
         self.dialog.selected_url = url
         self.dialog.accept()
 
     @pyqtSlot()
     def loadMore(self):
+        """Called from JS when the user scrolls near the bottom (infinite scroll)."""
         self.dialog.load_more_images()
 
-class GifBrowserDialog(QDialog):
-    def __init__(self, parent=None, api_key=None, tenor_filter="medium"):
+class KlipyGifBrowserDialog(QDialog):
+    """Modal browser that searches KLIPY and returns one selected GIF URL."""
+
+    def __init__(self, parent=None, api_key=None, rating="pg"):
         super().__init__(parent)
         self.api_key = api_key or ""
-        self.tenor_filter = tenor_filter
-        self.setWindowTitle("Tenor GIF Browser")
+        self.rating = rating or "pg"
+        self.setWindowTitle("Klipy GIF Browser")
         self.setMinimumSize(500, 500)
         self.selected_url = None
+        self._next_page = None
+        self._klipy_append_busy = False
 
         layout = QVBoxLayout(self)
 
         search_row = QHBoxLayout()
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search Tenor...")
-        self.search_edit.returnPressed.connect(self.do_search)
+        self.search_edit.setPlaceholderText("Search Klipy…")
+        self.search_edit.returnPressed.connect(lambda: self.do_search())
         search_btn = QPushButton("Search")
-        search_btn.clicked.connect(self.do_search)
+        search_btn.clicked.connect(lambda: self.do_search())
         search_row.addWidget(self.search_edit)
         search_row.addWidget(search_btn)
         layout.addLayout(search_row)
 
         self.results = QWebEngineView()
+        # setHtml() loads from an opaque local origin; allow remote GIF thumbnails.
+        rs = self.results.settings()
+        rs.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        rs.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
         layout.addWidget(self.results)
 
         # Remove navigation buttons for infinite scroll
@@ -368,107 +355,124 @@ class GifBrowserDialog(QDialog):
         # Live search timer setup (correct place)
         self.search_timer = QTimer(self)
         self.search_timer.setSingleShot(True)
-        self.search_timer.timeout.connect(self.do_search)
+        self.search_timer.timeout.connect(lambda: self.do_search())
         self.search_edit.textChanged.connect(self._on_search_text_changed)
 
-        # Paging state
-        self.current_query = ""
-        self.current_pos = None
-        self.prev_stack = []
-
     def _on_search_text_changed(self, text):
-        self.prev_stack = []
-        self.current_pos = None
+        self._next_page = None
         self.search_timer.start(400)
 
-    def do_search(self, pos=None, append=False):
-        api_key = self.api_key
-        tenor_filter = self.tenor_filter
+    def do_search(self, page=None, append=False):
+        """Run a KLIPY search; append=True loads the next results page into the table."""
         q = self.search_edit.text().strip()
         if not q:
             return
-        url = f"https://tenor.googleapis.com/v2/search?q={q}&key={api_key}&limit=20&media_filter=gif&contentfilter={tenor_filter}"
-        if pos:
-            url += f"&pos={pos}"
+        if not append:
+            page = page or 1
+            self._next_page = None
+        else:
+            page = page or self._next_page
+            if not page:
+                return
+            self._klipy_append_busy = True
         try:
-            resp = requests.get(url, timeout=8)
-            resp.raise_for_status()
-            data = resp.json()
-            # Build <tr>...</tr> rows for every 4 GIFs
+            gif_urls, next_page = klipy_search_gifs(
+                self.api_key, q, page=page, rating=self.rating, per_page=20
+            )
             rows = []
             row = ""
-            for i, result in enumerate(data["results"]):
-                gif_url = result["media_formats"]["gif"]["url"]
-                row += f'<td><img src="{gif_url}" width="100" height="100" onclick="selectGif(\'{gif_url}\')"></td>'
-                if (i+1) % 4 == 0:
+            for i, gif_url in enumerate(gif_urls):
+                safe = json_lib.dumps(gif_url)
+                row += (
+                    f"<td><img src={safe} width=\"100\" height=\"100\" "
+                    f"onclick='selectGif({safe})'></td>"
+                )
+                if (i + 1) % 4 == 0:
                     rows.append(f"<tr>{row}</tr>")
                     row = ""
-            if row:  # Any remaining GIFs
+            if row:
                 rows.append(f"<tr>{row}</tr>")
             rows_html = "".join(rows)
 
-            # Track if more results are available
-            more_results = data.get("next", None) is not None
+            more_results = next_page is not None
+            self._next_page = next_page
 
             if append:
+                # Embed HTML as a JS string literal (json.dumps output), not JSON.parse(dumps(...)):
+                # JSON.parse("<tr>...") fails because the parser sees raw '<' at position 0.
+                rows_js_literal = json_lib.dumps(rows_html)
                 js = f"""
                 var tbl = document.querySelector('table');
-                var html = `{rows_html}`;
-                tbl.insertAdjacentHTML('beforeend', html);
-                window._tenorHasMore = {str(more_results).lower()};
+                if (tbl) {{
+                  var html = {rows_js_literal};
+                  tbl.insertAdjacentHTML('beforeend', html);
+                }}
+                window._klipyHasMore = {str(more_results).lower()};
+                window._klipyMoreLoading = false;
                 """
                 self.results.page().runJavaScript(js)
             else:
+                empty_note = (
+                    "<tr><td colspan=\"4\" style=\"color:#aaa;padding:12px;\">No GIFs found. "
+                    "Try another search.</td></tr>"
+                    if not rows_html.strip()
+                    else ""
+                )
                 html = f"""
                 <html>
                   <head>
+                    <meta charset="utf-8">
                     <style>
-                      body {{ background: #232323; }}
+                      body {{ background: #232323; margin: 0; pointer-events: none; }}
                       td {{ padding: 6px; }}
                     </style>
                     <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-                    <script>
-                      var pyBridge = null;
-                      var _tenorHasMore = {str(more_results).lower()};
-                      new QWebChannel(qt.webChannelTransport, function(channel) {{
-                        pyBridge = channel.objects.pyBridge;
-                      }});
-
-                      function selectGif(url) {{
-                        if (pyBridge) pyBridge.gifSelected(url);
-                      }}
-
-                      window.onscroll = function() {{
-                        if (_tenorHasMore && (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {{
-                          // Reached bottom
-                          if (pyBridge && pyBridge.loadMore) pyBridge.loadMore();
-                        }}
-                      }};
-                    </script>
                   </head>
                   <body>
                     <table>
-                      {rows_html}
+                      {rows_html if rows_html.strip() else empty_note}
                     </table>
+                    <script>
+                      var pyBridge = null;
+                      var _klipyHasMore = {str(more_results).lower()};
+                      window._klipyMoreLoading = false;
+                      function selectGif(url) {{
+                        if (pyBridge) pyBridge.gifSelected(url);
+                      }}
+                      window.onscroll = function() {{
+                        if (!_klipyHasMore || window._klipyMoreLoading) return;
+                        if (!pyBridge || !pyBridge.loadMore) return;
+                        var nearBottom = (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 120;
+                        if (!nearBottom) return;
+                        window._klipyMoreLoading = true;
+                        pyBridge.loadMore();
+                      }};
+                      new QWebChannel(qt.webChannelTransport, function(channel) {{
+                        pyBridge = channel.objects.pyBridge;
+                        document.body.style.pointerEvents = 'auto';
+                      }});
+                    </script>
                   </body>
                 </html>
                 """
                 self.results.setHtml(html)
 
-            # --- Fix: Always track previous positions, including first page ---
-            if not self.prev_stack or self.prev_stack[-1] != pos:
-                self.prev_stack.append(pos)
-            self.current_query = q
-            self.current_pos = data.get("next", None)
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to search Tenor:\n{e}")
+            QMessageBox.warning(self, "Error", f"Failed to search Klipy:\n{e}")
+        finally:
+            if append:
+                self._klipy_append_busy = False
+                self.results.page().runJavaScript("window._klipyMoreLoading = false;")
 
     def use_selected(self):
+        """Accept the dialog if a thumbnail was already chosen via ``gifSelected``."""
         if self.selected_url:
             self.accept()
         else:
             QMessageBox.information(self, "Select GIF", "Click a GIF thumbnail to select it.")
 
     def load_more_images(self):
-        if self.current_pos:
-            self.do_search(self.current_pos, append=True)
+        """Infinite-scroll hook: request the next KLIPY page."""
+        if self._klipy_append_busy or not self._next_page:
+            return
+        self.do_search(page=self._next_page, append=True)

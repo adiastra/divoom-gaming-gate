@@ -38,7 +38,7 @@ divoom-gaming-gate
 
 
 
-In this screen, you can load any image or animated GIF from either your local machine or Tenor GIF Search. You can skip frames (for sending large GIFs faster) and edit the time between frames. This screen also allows you to change the aspect of the image to Stretch, Fit, or Crop the image for the best fit. You can also save sets of images as themes. 
+In this screen, you can load any image or animated GIF from either your local machine or [Klipy](https://klipy.com/) GIF search (API key from [partner.klipy.com](https://partner.klipy.com/api-keys)). You can skip frames (for sending large GIFs faster) and edit the time between frames. This screen also allows you to change the aspect of the image to Stretch, Fit, or Crop the image for the best fit. You can also save sets of images as themes. 
 
 
 -------------

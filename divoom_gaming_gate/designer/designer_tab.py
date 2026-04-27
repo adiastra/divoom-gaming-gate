@@ -43,6 +43,11 @@ class DesignerBridge(QObject):
     def setStrokeWidth(self, width):
         self.tab.setStrokeWidth(width)
 
+    @pyqtSlot(str)
+    def set_tool(self, tool):
+        """Forward tool changes from ``editor.html`` into the Python toolbar + canvas."""
+        self.tab.set_tool(tool)
+
 class DesignerTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
